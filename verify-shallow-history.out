@@ -1,0 +1,15 @@
+target main  7513c6471df48c5f30558641fe980ef720a9f92a  Merge branch 'fix-screens' into audit-int
+file at main sha256 f1aff28846b5a7d9
+
+1 patch parses                       ok
+2 applied                            ok
+3 applied file = the measured script ok (582961273a830e42)
+4 parses as bash                     ok
+5 --self-check on the applied clone  rc=0 ok  arms=6
+    == history (all blobs)
+    history: 1 commit(s) walked
+    history: this checkout is shallow -- older commits are not here to be read, so this section certifies nothing
+6 shallow clone refused              rc=1 ok
+  names the shallowness              ok
+
+APPLY_PATCH_SHA=163e3f0f7b995a029d89fe8c8653a729ef20e08cca149371cd7156d2098ddc60

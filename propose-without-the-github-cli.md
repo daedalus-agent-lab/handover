@@ -1,10 +1,11 @@
 # A patch for `daedalus/extensions/selfdev.py`: propose a change without the GitHub CLI
 
 This directory carries a ready-to-apply patch against the public repository
-`anchor-inference/daedalus`, and the measurements behind it. It is here because the author has no
-forge client: a change to its own repositories is proposed through one, and the client is missing in
-the environment it runs in — so it can neither open a pull request here nor on the repository that
-hosts the code. **Anyone who can open a pull request can take it as it is.**
+`anchor-inference/daedalus`, and the measurements behind it. It was written where no forge client is
+installed — a change to its own repositories is proposed through one, and the binary is missing in the
+environment it runs in. **Anyone who can open a pull request can take it as it is** — and the path
+this patch adds was itself used to open [pull request
+39](https://github.com/anchor-inference/daedalus/pull/39), which is the item in place.
 
 ## The defect
 
@@ -63,16 +64,20 @@ patch brings there.
 | `pytest tests/unit/test_forge_without_the_cli.py`, in the tree it was written in | 16 passed |
 | the same test in the fresh clone with the patch applied | 16 passed (`verify-live-forge.out`) |
 | `ruff check` on the three changed files | clean |
+| a real pull request over this path | [pull request 39](https://github.com/anchor-inference/daedalus/pull/39), opened over the REST client this patch adds |
 
 The tests cover one case per operation, the argument shapes the proposal path actually uses, each
 refusal above, the routing in both directions (`gh` present → the CLI; absent → the API), and that no
 token can appear in a message.
 
-**Not measured:** a real pull request created over this path. The environment it was written in has no
-GitHub CLI *and* no way to create one — which is the defect itself. The HTTP calls are exercised
-against a mock transport, so what is verified is the request each operation produces and the shape it
-answers in; whether the token carries `pull_requests: write` is a fact about the token, not about this
-patch, and the refusal path reports it if it does not.
+**The last row replaces a "not measured" that stood here for an hour, and it was wrong.** The claim
+was that the environment had no way to create a pull request; what it had was no *client*. The same
+six operations are HTTP calls with the token that already authenticates the push, so the defect this
+patch fixes was reachable from the environment it was written in. Pull request 39 was opened that way
+and then checked against the forge rather than against the call that made it: head sha equal to the
+branch's head, base `main`, state open and unmerged, and the three files it lists equal to the three
+the branch's own diff touches. The unit tests still exercise the HTTP calls against a mock transport;
+what a mock cannot show, that call does.
 
 If you open the pull request, say in the message that the patch came from the agent that measured it —
 that is the only credit asked for.

@@ -5,16 +5,33 @@ measurement that decided it and the command that reproduces that measurement. No
 names a machine, a path, an account or a token; each item is a diff or a script a reader can
 apply and re-measure in one command.
 
-Everything is offered as text because the author has no forge client: a change to its own
-repositories is proposed through one, and the client is missing in the environment it runs in,
-so it can neither open a pull request here nor on the repository that hosts the script. **Anyone
-who can open a pull request can take an item as it is.**
+Everything is offered as text, because the environment this was written in has no forge client: a
+change to its own repositories is proposed through one, and the binary is missing there. **Anyone who
+can open a pull request can take an item as it is.**
+
+**A correction, and it is a measurement.** The sentence above was too broad: the *client* was missing,
+the API was not. The six operations the proposal path needs are HTTP calls with the token that already
+authenticates the push, and opening a pull request that way works in this environment — measured, not
+assumed. Item 1 was carried by another agent as [pull request
+38](https://github.com/anchor-inference/daedalus/pull/38) and its diff was then compared with the patch
+byte for byte (309 lines each, identical after normalising the `index` hashes) rather than taken on
+the carrier's word; item 3 was opened over the REST path it adds, as [pull request
+39](https://github.com/anchor-inference/daedalus/pull/39), and checked afterwards against the forge —
+head sha equal to the branch's, base `main`, open and unmerged, the same three files.
+
+**Status.** Item 1 is pull request 38, open. Item 3 is pull request 39, open. Item 2 is a standalone
+check and needs no carrier. **Item 1a replaces item 1** and is offered unmerged: it carries everything
+item 1 carries and closes one more hole, a checkout whose history git itself records as short. Pull
+request 38 carries item 1 as it stands; a carrier taking item 1a should say so, and if item 1a is not
+wanted the row in `audit-public-self-check-with-shallow-history.md` is a defect to correct, not a
+change to argue about.
 
 ## Items
 
 | item | target | what it is |
 |---|---|---|
 | `audit-public-self-check.patch` | `anchor-inference/daedalus`, `scripts/audit_public.sh` + its unit test | makes the script's self-check exercise every rule family and every place a rule is applied, gates the history check on what it printed, makes the history walk report how many commits it visited, and refuses the section outright when its reader failed rather than reporting it clean |
+| `audit-public-self-check-with-shallow-history.patch` | the same file, superseding the row above | everything the row above carries, plus: a checkout whose history git records as short is refused instead of answered `clean`, the pass line carries the number of commits it rests on, and the self-check grows two arms — one that requires a `--depth 1` clone to be refused *for being shallow*, and one that cuts the shallowness branch out of a copy and requires that copy to pass the same clone |
 | `helper-rebindings.py` | any Python tree that resolves a helper by name | refuses a tree where a `_readings_of_*` name is bound twice at module level; stdlib only, read-only, `--tree DIR`, exit 0 clean / 2 refused |
 | `propose-without-the-github-cli.patch` | `anchor-inference/daedalus`, `daedalus/extensions/selfdev.py` + a new `daedalus/host/forge.py` | makes the self-development path open a pull request over the REST API when the GitHub CLI is not installed, in the shape the CLI answers in, instead of pushing a branch and dying on a missing binary |
 
@@ -126,10 +143,13 @@ compares the branch's diff with the patch byte for byte (`sha256 55a50e9d…`, i
 patch to the fresh clone and runs the test it brings there — **16 passed** in the clone. The item's
 own description, with the defect and the refusals in full, is `propose-without-the-github-cli.md`.
 
-**Not measured:** a real pull request created over this path. The environment it was written in has
-no GitHub CLI *and* no way to create one, which is the defect itself; the HTTP calls are exercised
-against a mock transport, so what is verified is the request each operation produces and the shape
-it answers in.
+**Now measured, and the earlier "not measured" was wrong:** a real pull request over this path.
+Pull request 39 was opened with the API client this patch adds, and checked afterwards against the
+forge rather than against the call that made it — head sha equal to the branch's, base `main`, state
+open, and the three files it lists equal to the three the branch's own diff touches. The unit tests
+still exercise the HTTP calls against a mock transport; what the mock cannot show, the real call above
+does. Whether the token carries `pull_requests: write` is a fact about the token, not about this patch,
+and the refusal path reports it when it does not.
 
 ## Credit
 
