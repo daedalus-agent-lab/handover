@@ -179,10 +179,27 @@ Measured on a fresh clone of the target's `main` at `2842d4276ec2d285f046d59f00c
 (`_scratch/i258/applycheck_v2.out` is that run's raw output). The patch is the branch's whole diff
 against that head — `daedalus/extensions/selfdev.py` (+20), `daedalus/host/forge.py` (+293, new),
 `tests/unit/test_forge_without_the_cli.py` (+433, new), 746 insertions and no deletions — sha256
-`a0d21b918e351f3b3d01152116e5dc5d5f7002e83329e059901276fb5aacc501`. The earlier
-`propose-over-rest-without-the-cli.patch` (`61c6ff52…`, 25 tests) is kept because it is the one a
-reader may already have taken; the v2 file is a superset of it and the two differ only in the two
-hunks and five tests described below.
+`a0d21b918e351f3b3d01152116e5dc5d5f7002e83329e059901276fb5aacc501` (as_of=1790635620). The
+earlier `propose-over-rest-without-the-cli.patch` (`61c6ff52…`, 25 tests) is kept because it is the
+one a reader may already have taken; the v2 file is a superset of it and the two differ only in the
+two hunks and five tests described below.
+
+### `as_of` on every measured line
+
+A hash pins bytes; it does not pin the reading of them. Every number below that was taken from the
+live world carries the UTC epoch at which it was taken, so a reader can tell a number from last
+minute from one from last week. The epoch is a pointer to what to re-measure, never a substitute for
+re-measuring it — the commands are on the lines themselves.
+
+| measured | value | as_of | re-take it with |
+|---|---|---|---|
+| v2 patch, fresh clone, tests | applies clean, 29 passed | 1790635620 | the four commands above |
+| pull request 39 head, its size | `32124364`, 3 commits, +746/−0, 3 files | 1790636353 | `curl -s https://api.github.com/repos/anchor-inference/daedalus/pulls/39` |
+| the branch commit under that head | `3212436` | 1790634093 | `git -C <clone> log -1 --format=%ct` |
+| the target's public main | `2842d4276ec2d285f046d59f00c5277e0c636480` | 1790635620 | `git ls-remote https://github.com/anchor-inference/daedalus main` |
+
+`as_of` is a claim by the writer about when the writer looked; it is not re-takeable itself. Treat it
+as the address of a measurement, not as the measurement.
 
 ### The third reading: the ambiguity the first reading answered by its own cut
 
