@@ -1,25 +1,40 @@
 diff --git a/scripts/audit_public.sh b/scripts/audit_public.sh
-index 8ffe490..515cf80 100755
+index 8ffe490..2cb22c9 100755
 --- a/scripts/audit_public.sh
 +++ b/scripts/audit_public.sh
-@@ -63,8 +63,14 @@ audit() {
+@@ -63,8 +63,29 @@ audit() {
    if git grep -InE "$PATTERNS" -- . 2>/dev/null | grep -EvI "$PATTERN_EXEMPT" | grep -vi "$OWN_TRAILER"; then failed=1; else echo "clean"; fi
  
    echo "== history (all blobs)"
 -  if git rev-list --all | while read -r c; do git grep -InE "$PATTERNS" "$c" -- . 2>/dev/null | sed "s/^/$c:/"; done |
 -    grep -EvI "$PATTERN_EXEMPT" | grep -vi "$OWN_TRAILER"; then failed=1; else echo "clean"; fi
-+  local history_hits
++  local history_hits history_report walked
 +  # Captured, then tested -- never tested by the pipeline's status. Under pipefail the status of
 +  # `cmd | while ...; done | grep ...` is the status of the loop's LAST iteration, so a pattern
 +  # present in an older commit and absent from the newest one printed its line here and answered
 +  # "clean": the verdict hung on the order `git rev-list --all` happens to visit commits in.
-+  history_hits=$(git rev-list --all | while read -r c; do git grep -InE "$PATTERNS" "$c" -- . 2>/dev/null | sed "s/^/$c:/"; done |
++  # The walk that reads is also the walk that counts. A finding proves only that the reader reached
++  # the commit the finding is in, so a walk cut short after it prints the same line and answers the
++  # same way; the number of commits visited is the only part of the answer that does not depend on
++  # where the finding sits. It is taken inside the substitution that does the grepping, because a
++  # count read from a second, untruncated enumeration would agree with itself and prove nothing.
++  history_report=$(
++    walked=0
++    while read -r c; do
++      walked=$((walked + 1))
++      git grep -InE "$PATTERNS" "$c" -- . 2>/dev/null | sed "s/^/$c:/"
++    done < <(git rev-list --all)
++    printf 'walked %d\n' "$walked"
++  )
++  walked=$(printf '%s\n' "$history_report" | sed -n 's/^walked \([0-9][0-9]*\)$/\1/p')
++  history_hits=$(printf '%s\n' "$history_report" | grep -v '^walked [0-9][0-9]*$' |
 +    grep -EvI "$PATTERN_EXEMPT" | grep -vi "$OWN_TRAILER" || true)
++  echo "history: ${walked:-0} commit(s) walked"
 +  if [ -n "$history_hits" ]; then printf '%s\n' "$history_hits"; failed=1; else echo "clean"; fi
  
    echo "== commit messages"
    if git log --all --format='%H %s%n%b' | grep -inE "$PATTERNS" | grep -vi "$OWN_TRAILER"; then failed=1; else echo "clean"; fi
-@@ -111,8 +117,16 @@ audit() {
+@@ -111,8 +132,16 @@ audit() {
  
  # -- the self-check ---------------------------------------------------------------------------
  #
@@ -38,7 +53,7 @@ index 8ffe490..515cf80 100755
  
  self_check() {
    local fixture status
-@@ -125,8 +139,25 @@ self_check() {
+@@ -125,8 +154,25 @@ self_check() {
      printf '\177ELF\002\001\001\000 built somewhere\n' > tool
      mkdir -p notes
      printf 'the build ran in /home/%s/checkout\n' "$(id -un)" > notes/build.md
@@ -65,7 +80,7 @@ index 8ffe490..515cf80 100755
    )
    status=0
    bash "$SELF" "$fixture" > "$fixture/out.txt" 2>&1 || status=$?
-@@ -142,7 +173,13 @@ self_check() {
+@@ -142,7 +188,13 @@ self_check() {
      echo "SELF-CHECK FAILED: the committed binary was not named"; printf '%s\n' "$report"; return 1; }
    printf '%s' "$report" | grep -q "notes/build.md" || {
      echo "SELF-CHECK FAILED: the machine path was not named"; printf '%s\n' "$report"; return 1; }
@@ -80,7 +95,7 @@ index 8ffe490..515cf80 100755
  
    local out
    out=$(bash "$SELF" "$ROOT" 2>&1) || {
-@@ -151,6 +188,35 @@ self_check() {
+@@ -151,6 +203,46 @@ self_check() {
      return 1
    }
    echo "self-check: the audit passes this tree"
@@ -103,6 +118,8 @@ index 8ffe490..515cf80 100755
 +    git rm -q gone.txt
 +    git commit -qm "and is gone from the tree"
 +  )
++  local walked_expected
++  walked_expected=$(cd "$older" && git rev-list --all | wc -l | tr -d ' ')
 +  status2=0
 +  bash "$SELF" "$older" > "$older/out.txt" 2>&1 || status2=$?
 +  report2=$(cat "$older/out.txt")
@@ -112,15 +129,24 @@ index 8ffe490..515cf80 100755
 +    printf '%s\n' "$report2"
 +    return 1
 +  fi
++  # The credential is in the fixture's middle commit, so the refusal above witnesses only the region
++  # that commit sits in: an enumeration cut short after it still finds the credential and still
++  # refuses. This is the other half, and it holds wherever the credential sits -- the audit must
++  # report having visited every commit the fixture has.
++  if ! printf '%s\n' "$report2" | grep -q "^history: $walked_expected commit(s) walked$"; then
++    echo "SELF-CHECK FAILED: the history reader did not report visiting all of the fixture's commits"
++    printf '%s\n' "$report2"
++    return 1
++  fi
 +  echo "self-check: the audit refuses a pattern that survives only in history"
  }
  
  SELF=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 diff --git a/tests/unit/test_public_text.py b/tests/unit/test_public_text.py
-index ae8f124..624615d 100644
+index ae8f124..7676c87 100644
 --- a/tests/unit/test_public_text.py
 +++ b/tests/unit/test_public_text.py
-@@ -40,3 +40,37 @@ def test_the_public_audit_refuses_a_committed_binary_and_a_machine_path() -> Non
+@@ -40,3 +40,61 @@ def test_the_public_audit_refuses_a_committed_binary_and_a_machine_path() -> Non
      assert done.returncode == 0, done.stdout + done.stderr
      assert "refuses a committed binary and a machine path" in done.stdout
      assert "passes this tree" in done.stdout
@@ -158,3 +184,27 @@ index ae8f124..624615d 100644
 +    done = subprocess.run(["bash", str(script), str(repo)], capture_output=True, text=True)
 +    assert done.returncode != 0, "a credential surviving only in an older commit was not refused:\n" + done.stdout
 +    assert "gone.txt" in done.stdout
++
++
++def test_the_public_audit_catches_a_history_walk_that_stops_early(tmp_path) -> None:
++    """The history arm's verdict does not depend on where the surviving credential sits.
++
++    The self-check's own fixture keeps its credential in the middle commit, so the refusal that
++    fixture demands witnesses only the walk up to that commit: an enumeration cut short after it
++    still finds the credential and still refuses, and the self-check would answer green. The audit
++    reports how many commits it visited and the self-check requires all of them, so a walk that
++    stops early goes red wherever the credential sits -- which is this test, measured on a copy.
++    """
++    import subprocess
++    from pathlib import Path
++
++    script = Path(__file__).resolve().parents[2] / "scripts" / "audit_public.sh"
++    text = script.read_text(encoding="utf-8")
++    needle = "done < <(git rev-list --all)"
++    assert text.count(needle) == 1, "the history enumeration is not one occurrence"
++    cut = tmp_path / "audit_public_cut.sh"
++    cut.write_text(text.replace(needle, "done < <(git rev-list --all | head -2)"), encoding="utf-8")
++
++    done = subprocess.run(["bash", str(cut), "--self-check"], capture_output=True, text=True)
++    assert done.returncode != 0, "a history walk that stopped early passed the self-check:\n" + done.stdout
++    assert "did not report visiting all of the fixture's commits" in done.stdout
