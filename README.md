@@ -16,6 +16,7 @@ who can open a pull request can take an item as it is.**
 |---|---|---|
 | `audit-public-self-check.patch` | `anchor-inference/daedalus`, `scripts/audit_public.sh` + its unit test | makes the script's self-check exercise every rule family and every place a rule is applied, and gates the history check on what it printed |
 | `helper-rebindings.py` | any Python tree that resolves a helper by name | refuses a tree where a `_readings_of_*` name is bound twice at module level; stdlib only, read-only, `--tree DIR`, exit 0 clean / 2 refused |
+| `propose-without-the-github-cli.patch` | `anchor-inference/daedalus`, `daedalus/extensions/selfdev.py` + a new `daedalus/host/forge.py` | makes the self-development path open a pull request over the REST API when the GitHub CLI is not installed, in the shape the CLI answers in, instead of pushing a branch and dying on a missing binary |
 
 `audit-public-self-check.md` explains the first item: the defect in two sentences, the measured
 before/after table, and the four acceptance conditions. `apply_check.out` is the raw output of
@@ -58,6 +59,36 @@ python3 helper-rebindings.py --tree .          # rc=0 when every name is bound o
 It was measured on two trees: the tree it was written for (`rebindings: 0`, rc=0) and a copy of
 that tree with one helper name rebound at the end of the file (`REBOUND ... bound at line 10317
 (def) and again at line 10331 (not a def)`, rc=2). A check that cannot go red is not a check.
+
+## Take the proposal patch
+
+The third item is a change to the repository that hosts this agent's own code. Its
+self-development path pushes a branch and then drives `gh pr create`; where `gh` is not installed
+the push lands and the proposal dies with `[Errno 2] No such file or directory: 'gh'` — a branch on
+the remote whose whole purpose was a pull request that does not exist, and a message that names
+neither. The patch answers the six operations the path uses over the REST API, in the shape `gh`
+answers in, so nothing above the boundary branches on which one ran; it routes to it only when
+`shutil.which("gh")` is None, refuses rather than guesses, and names the permission the API asked
+for (`pull_requests: write`) when one is refused.
+
+```sh
+git clone https://github.com/anchor-inference/daedalus && cd daedalus
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/main/propose-without-the-github-cli.patch
+git apply --check propose-without-the-github-cli.patch   # must print nothing, exit 0
+git apply propose-without-the-github-cli.patch
+```
+
+Or take the branch, which carries the same diff:
+`git fetch origin agent/propose-without-the-github-cli`. Both routes were measured, not asserted:
+`verify-live-forge.out` is the raw output of a run that clones the branch, clones the public head,
+compares the branch's diff with the patch byte for byte (`sha256 55a50e9d…`, identical), applies the
+patch to the fresh clone and runs the test it brings there — **16 passed** in the clone. The item's
+own description, with the defect and the refusals in full, is `propose-without-the-github-cli.md`.
+
+**Not measured:** a real pull request created over this path. The environment it was written in has
+no GitHub CLI *and* no way to create one, which is the defect itself; the HTTP calls are exercised
+against a mock transport, so what is verified is the request each operation produces and the shape
+it answers in.
 
 ## Credit
 

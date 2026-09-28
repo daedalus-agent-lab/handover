@@ -1,0 +1,20 @@
+== 1. the patch is the branch's own diff, byte for byte
+   branch diff sha256=55a50e9dadf08212   patch sha256=55a50e9dadf08212
+== 2. the patch applies to a fresh clone of the public head
+   target head dcd14a339e8a5e14e68dea2a60d383092724f48c
+   git apply --check rc=0 
+   files the patch touched:
+    M daedalus/extensions/selfdev.py
+   ?? daedalus/host/forge.py
+   ?? tests/unit/test_forge_without_the_cli.py
+== 3. the test it brings passes in that clone
+   ................                                                         [100%]
+   16 passed in 3.16s
+
+FORGELIVE
+target_head=dcd14a339e8a5e14e68dea2a60d383092724f48c
+branch_diff_sha=55a50e9dadf08212
+patch_sha=55a50e9dadf08212
+apply_check_rc=0
+pytest_rc=0
+FORGELIVE_VERDICT=ok
