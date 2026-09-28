@@ -19,8 +19,8 @@ the carrier's word; item 3 was opened over the REST path it adds, as [pull reque
 39](https://github.com/anchor-inference/daedalus/pull/39), and checked afterwards against the forge —
 head sha equal to the branch's, base `main`, open and unmerged, the same three files.
 
-**Status.** Item 1 is pull request 38, open. Item 3 is pull request 39, open. Item 2 is a standalone
-check and needs no carrier. **Item 1a replaces item 1** and is offered unmerged: it carries everything
+**Status.** Item 1 is pull request 38, open. Item 3 is pull request 39, open — it carries item 3 and
+not item 3a, so a carrier taking 3a should say so. Item 2 is a standalone check and needs no carrier. **Item 1a replaces item 1** and is offered unmerged: it carries everything
 item 1 carries and closes one more hole, a checkout whose history git itself records as short. Pull
 request 38 carries item 1 as it stands; a carrier taking item 1a should say so, and if item 1a is not
 wanted the row in `audit-public-self-check-with-shallow-history.md` is a defect to correct, not a
@@ -34,6 +34,7 @@ change to argue about.
 | `audit-public-self-check-with-shallow-history.patch` | the same file, superseding the row above | everything the row above carries, plus: a checkout whose history git records as short is refused instead of answered `clean`; the number the section prints counts **distinct** commits, and a list that repeats one commit's id is refused naming the repetition; and the self-check grows three arms — a `--depth 1` clone must be refused *for being shallow*, a copy with the shallowness branch cut out must pass that same clone, and a copy whose enumeration is replaced by a list of the right length that repeats one id must be refused for repeating it |
 | `helper-rebindings.py` | any Python tree that resolves a helper by name | refuses a tree where a `_readings_of_*` name is bound twice at module level; stdlib only, read-only, `--tree DIR`, exit 0 clean / 2 refused |
 | `propose-without-the-github-cli.patch` | `anchor-inference/daedalus`, `daedalus/extensions/selfdev.py` + a new `daedalus/host/forge.py` | makes the self-development path open a pull request over the REST API when the GitHub CLI is not installed, in the shape the CLI answers in, instead of pushing a branch and dying on a missing binary |
+| `propose-over-rest-without-the-cli.patch` | the same three files, superseding the row above | everything the row above carries, plus: the route the proposals endpoint asks for and the fallback had no answer for (`pr diff`, read from the pull-request endpoint with the diff media type); `pr view <number>` told from `pr view <branch>`; short flags (`-t`, `-b`, `-B`, `-H`) and `--flag=value` parsed; an already-qualified head left alone; and a test that reads every `gh(...)` call out of the repository's own sources and asserts each one is a route the module answers — the reading that found the missing route |
 
 `audit-public-self-check.md` explains the first item: the defect in two sentences, the measured
 before/after table, and the four acceptance conditions. `apply_check.out` is the raw output of
@@ -150,6 +151,34 @@ open, and the three files it lists equal to the three the branch's own diff touc
 still exercise the HTTP calls against a mock transport; what the mock cannot show, the real call above
 does. Whether the token carries `pull_requests: write` is a fact about the token, not about this patch,
 and the refusal path reports it when it does not.
+
+### What the second reading of the same path found
+
+The six operations were listed from the path's own call sites, and that list was wrong: the proposals
+endpoint asks for `gh pr diff <number>` while the fallback had no answer for it, so a reader asking for
+the diff of a proposal would have been refused where the CLI would have answered. The list is now read
+out of the repository's sources rather than kept by hand — the test collects every literal `gh(...)`
+call in the package, substitutes a placeholder for a computed argument, and requires each one to be a
+route the module answers. Four more shapes came out of the same reading and are covered: a number
+passed to `pr view` was being looked up as a head branch name, short flags landed in the positional
+list, `--flag=value` was refused, and a head already written `owner:branch` was qualified a second
+time. Eight tests cover them and all eight fail against the first patch, so they measure the change
+rather than restate it.
+
+```sh
+git clone https://github.com/anchor-inference/daedalus && cd daedalus
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/main/propose-over-rest-without-the-cli.patch
+git apply --check propose-over-rest-without-the-cli.patch   # must print nothing, exit 0
+git apply propose-over-rest-without-the-cli.patch
+uv run pytest -q tests/unit/test_forge_without_the_cli.py   # 25 passed
+```
+
+Measured on a fresh clone of the target's `main` at `2842d4276ec2d285f046d59f00c5277e0c636480`:
+`git apply --check` clean on all three files, and after applying, **25 passed** in that clone. The
+patch is the branch's whole diff against that head — `daedalus/extensions/selfdev.py` (+20),
+`daedalus/host/forge.py` (+279, new), `tests/unit/test_forge_without_the_cli.py` (+352, new), 651
+insertions and no deletions — sha256
+`61c6ff52fc0d1efffb664fdb0328b1aaa41de1ff28794b8c0e9d8c2a26999a58`.
 
 ## Credit
 
