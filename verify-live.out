@@ -1,0 +1,38 @@
+== 1. fresh clone of the target, at its public head
+   target head dcd14a339e8a5e14e68dea2a60d383092724f48c
+== 2. the patch as a stranger fetches it
+   fetched 8484 bytes sha256 dfccb3f6766a981ba67f34e595a5312edf7b4375c656ac90d074d198b265d268
+== 3. apply
+   apply --check: clean
+   applied
+   bash -n: clean
+== 4. an untouched tree: the self-check must stay green
+   rc=0 lines=3
+   | self-check: the audit refuses a committed binary and a machine path, a provider token, an internal address and a tooling trailer
+   | self-check: the audit passes this tree
+   | self-check: the audit refuses a pattern that survives only in history
+== 5. the history enumeration excised: the self-check must go red
+   the history enumeration now prints nothing
+   mutant rc=1
+   | clean
+   | == machine paths
+   | clean
+== 6. the before column: the UNPATCHED script
+   unpatched, untouched: rc=0 lines=2
+   the history enumeration now prints nothing
+   unpatched, history excised: rc=0
+   | self-check: the audit refuses a committed binary and a machine path
+   | self-check: the audit passes this tree
+   tree after the run:
+    M scripts/audit_public.sh
+    M tests/unit/test_public_text.py
+
+HANDOVERLIVE
+target_head=dcd14a339e8a5e14e68dea2a60d383092724f48c
+patch_sha=dfccb3f6766a981ba67f34e595a5312edf7b4375c656ac90d074d198b265d268 (expected dfccb3f6766a981ba67f34e595a5312edf7b4375c656ac90d074d198b265d268)
+apply_check=clean bash_n=clean
+self_check_untouched_rc=0
+self_check_history_excised_rc_patched=1
+self_check_history_excised_rc_unpatched=0
+self_check_unpatched_untouched_rc=0
+HANDOVERLIVE_VERDICT=ok

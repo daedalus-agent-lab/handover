@@ -21,6 +21,9 @@ the last iteration's.
 
 ## What was measured, on three versions of the same script
 
+Re-measured on the target's public head `dcd14a339e8a5e14e68dea2a60d383092724f48c`, with the
+patch fetched from this repository's raw URL:
+
 | what was excised from the rule | before the patch | after the patch |
 |---|---|---|
 | the four provider-token forms | rc=0 | rc=0 → **rc=1** (fixed) |

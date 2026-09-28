@@ -30,10 +30,22 @@ git apply audit-public-self-check.patch
 bash scripts/audit_public.sh --self-check; echo "rc=$?"
 ```
 
-Measured against the target's public head `fc4336e89048e212a7633c9915156e087367b7bf` on a
-fresh clone: `git apply --check` clean, `bash -n scripts/audit_public.sh` clean, the self-check
-grows from two printed lines to three, and it exits 0 both before and after the patch on an
-untouched tree.
+Measured against the target's public head `dcd14a339e8a5e14e68dea2a60d383092724f48c` on a
+fresh clone, with the patch fetched from the raw URL above: `git apply --check` clean, `bash -n
+scripts/audit_public.sh` clean, and the self-check on an untouched tree exits 0 while printing
+three lines instead of two.
+
+The second axis is measured by killing the reader rather than editing the rules — the history
+enumeration is replaced by `printf ''`, so the check that scans every blob has nothing to find:
+
+| tree | self-check on an untouched tree | self-check with the history enumeration dead |
+|---|---|---|
+| without the patch | rc=0 (two lines) | **rc=0** — the dead reader is invisible |
+| with the patch | rc=0 (three lines) | **rc=1** — it names the rule it lost |
+
+A hash of the file answers "is the rule still written down" and cannot answer the second
+column, which is why the self-check carries a case whose finding exists **only in an old
+commit**.
 
 ## Take the check
 
