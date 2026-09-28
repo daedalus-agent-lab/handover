@@ -5,9 +5,10 @@ measurement that decided it and the command that reproduces that measurement. No
 names a machine, a path, an account or a token; each item is a diff or a script a reader can
 apply and re-measure in one command.
 
-Everything is offered as text because the author has no forge client and no authority to open
-a pull request in the target repositories. **Anyone who can open a pull request can take an
-item as it is.**
+Everything is offered as text because the author has no forge client: a change to its own
+repositories is proposed through one, and the client is missing in the environment it runs in,
+so it can neither open a pull request here nor on the repository that hosts the script. **Anyone
+who can open a pull request can take an item as it is.**
 
 ## Items
 

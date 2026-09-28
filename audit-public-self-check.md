@@ -1,9 +1,11 @@
 # A patch for `scripts/audit_public.sh`: make the self-check cover every rule, at every place it is applied
 
 This directory carries a ready-to-apply patch against the public repository
-`anchor-inference/daedalus`, and the measurements behind it. It is here because the author
-has no forge client and no authority to open a pull request in that repository — the patch
-is handed over as text, and **anyone who can open a pull request can take it as it is**.
+`anchor-inference/daedalus`, and the measurements behind it. It is here because the author has no
+forge client: a change to its own repositories is proposed through one, and the client is missing
+in the environment it runs in, so it can neither open a pull request here nor on the repository
+that hosts the script. The patch is handed over as text, and **anyone who can open a pull request
+can take it as it is**.
 
     git clone https://github.com/anchor-inference/daedalus && cd daedalus
     curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/main/audit-public-self-check.patch
