@@ -14,7 +14,7 @@ who can open a pull request can take an item as it is.**
 
 | item | target | what it is |
 |---|---|---|
-| `audit-public-self-check.patch` | `anchor-inference/daedalus`, `scripts/audit_public.sh` + its unit test | makes the script's self-check exercise every rule family and every place a rule is applied, and gates the history check on what it printed |
+| `audit-public-self-check.patch` | `anchor-inference/daedalus`, `scripts/audit_public.sh` + its unit test | makes the script's self-check exercise every rule family and every place a rule is applied, gates the history check on what it printed, makes the history walk report how many commits it visited, and refuses the section outright when its reader failed rather than reporting it clean |
 | `helper-rebindings.py` | any Python tree that resolves a helper by name | refuses a tree where a `_readings_of_*` name is bound twice at module level; stdlib only, read-only, `--tree DIR`, exit 0 clean / 2 refused |
 | `propose-without-the-github-cli.patch` | `anchor-inference/daedalus`, `daedalus/extensions/selfdev.py` + a new `daedalus/host/forge.py` | makes the self-development path open a pull request over the REST API when the GitHub CLI is not installed, in the shape the CLI answers in, instead of pushing a branch and dying on a missing binary |
 
@@ -35,7 +35,7 @@ bash scripts/audit_public.sh --self-check; echo "rc=$?"
 Measured against the target's public head `dcd14a339e8a5e14e68dea2a60d383092724f48c` on a
 fresh clone, with the patch fetched from the raw URL above: `git apply --check` clean, `bash -n
 scripts/audit_public.sh` clean, and the self-check on an untouched tree exits 0 while printing
-three lines instead of two.
+four lines instead of two.
 
 The second axis is measured by killing the reader rather than editing the rules — the history
 enumeration is replaced by `printf ''`, so the check that scans every blob has nothing to find:
@@ -43,11 +43,52 @@ enumeration is replaced by `printf ''`, so the check that scans every blob has n
 | tree | self-check on an untouched tree | self-check with the history enumeration dead |
 |---|---|---|
 | without the patch | rc=0 (two lines) | **rc=0** — the dead reader is invisible |
-| with the patch | rc=0 (three lines) | **rc=1** — it names the rule it lost |
+| with the patch | rc=0 (four lines) | **rc=1** — it names the rule it lost |
 
 A hash of the file answers "is the rule still written down" and cannot answer the second
 column, which is why the self-check carries a case whose finding exists **only in an old
 commit**.
+
+The third axis is the one that fixture does not reach, and it is worth stating because the first
+version of this patch failed it. A finding proves only that the reader reached the commit the
+finding is in, so a walk cut short *after* that commit prints the same line and answers the same
+way. The self-check's fixture keeps its credential in the middle of three commits; replacing the
+enumeration with `git rev-list --all | head -K` (an early-stopping walk, exit 0) and running
+`--self-check`:
+
+| K of 3 | first version of the patch | this patch | what the audit reported |
+|---|---|---|---|
+| 0 | red (the plant was not reached) | red (the plant was not reached) | `history: 0 commit(s) walked` |
+| 1 | red (the plant was not reached) | red (the plant was not reached) | `history: 1 commit(s) walked` |
+| 2 | **green — not caught** | **red — the count** | `history: 2 commit(s) walked` |
+| 3 | green (the whole walk) | green (the whole walk) | `history: 3 commit(s) walked` |
+
+The walk that reads is also the walk that counts: the counter is incremented inside the same
+substitution that does the grepping, and the self-check requires it to equal the number of commits
+the fixture has. A count taken from a second, untruncated enumeration would agree with itself and
+prove nothing. The unit test file gains the case that says so — it copies the audit, cuts the walk
+to two of three, and requires the self-check to exit non-zero naming the count.
+
+### A reader that broke is not a reader that found nothing
+
+The enumeration was handed to the loop through a process substitution, so its exit status was
+never seen, and the hit list was filtered with `|| true` on top of that. An audit whose
+`git rev-list` failed printed `history: 0 commit(s) walked` and then `clean` — the same two words
+as a repository with nothing to find, over a section that never ran. The self-check could not see
+this either: every mutation it carried killed the loop, not the enumeration.
+
+The list is now produced into a file with its status taken where it is produced, and a commit the
+reader could not read (`git grep` exiting above 1) is counted separately from a commit with no
+match. Either one fails the section and says which happened:
+
+| tree | enumeration exits non-zero, prints nothing |
+|---|---|
+| without the patch | **rc=0** — `history: 0 commit(s) walked`, then `clean` |
+| with the patch | **rc=1** — `history: the reader could not answer -- enumeration exit 1, 0 commit(s) unreadable` |
+
+The self-check gains that arm: the enumeration replaced by a command that fails without printing,
+applied to a copy, with the copy compared against the original first so an arm that could not be
+planted fails rather than passes.
 
 ## Take the check
 
