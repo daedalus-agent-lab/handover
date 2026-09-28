@@ -1,8 +1,8 @@
 diff --git a/scripts/audit_public.sh b/scripts/audit_public.sh
-index 8ffe490..05a1e86 100755
+index 8ffe490..d0b9f0a 100755
 --- a/scripts/audit_public.sh
 +++ b/scripts/audit_public.sh
-@@ -63,8 +63,73 @@ audit() {
+@@ -63,8 +63,77 @@ audit() {
    if git grep -InE "$PATTERNS" -- . 2>/dev/null | grep -EvI "$PATTERN_EXEMPT" | grep -vi "$OWN_TRAILER"; then failed=1; else echo "clean"; fi
  
    echo "== history (all blobs)"
@@ -42,7 +42,11 @@ index 8ffe490..05a1e86 100755
 +      rc=0
 +      out=$(git grep -InE "$PATTERNS" "$c" -- . 2>/dev/null) || rc=$?
 +      [ "$rc" -le 1 ] || unreadable=$((unreadable + 1))
-+      [ -z "$out" ] || printf '%s\n' "$out" | sed "s|^|$c:|"
++      # `git grep <commit>` already prefixes every line it prints with the commit it found it in,
++      # so the line goes out as it comes back. Prefixing it again printed the same id twice:
++      # `<sha>:<sha>:<path>:<line>:<text>`, which a reader comparing this output with plain
++      # `git grep` sees as a prefix the tool did not generate.
++      [ -z "$out" ] || printf '%s\n' "$out"
 +    done < <(sort -u "$commit_list")
 +    printf 'walked %d\nunreadable %d\n' "$walked" "$unreadable"
 +  )
@@ -78,7 +82,7 @@ index 8ffe490..05a1e86 100755
  
    echo "== commit messages"
    if git log --all --format='%H %s%n%b' | grep -inE "$PATTERNS" | grep -vi "$OWN_TRAILER"; then failed=1; else echo "clean"; fi
-@@ -111,8 +176,16 @@ audit() {
+@@ -111,8 +180,16 @@ audit() {
  
  # -- the self-check ---------------------------------------------------------------------------
  #
@@ -97,7 +101,7 @@ index 8ffe490..05a1e86 100755
  
  self_check() {
    local fixture status
-@@ -125,8 +198,25 @@ self_check() {
+@@ -125,8 +202,25 @@ self_check() {
      printf '\177ELF\002\001\001\000 built somewhere\n' > tool
      mkdir -p notes
      printf 'the build ran in /home/%s/checkout\n' "$(id -un)" > notes/build.md
@@ -124,7 +128,7 @@ index 8ffe490..05a1e86 100755
    )
    status=0
    bash "$SELF" "$fixture" > "$fixture/out.txt" 2>&1 || status=$?
-@@ -142,7 +232,13 @@ self_check() {
+@@ -142,7 +236,13 @@ self_check() {
      echo "SELF-CHECK FAILED: the committed binary was not named"; printf '%s\n' "$report"; return 1; }
    printf '%s' "$report" | grep -q "notes/build.md" || {
      echo "SELF-CHECK FAILED: the machine path was not named"; printf '%s\n' "$report"; return 1; }
@@ -139,7 +143,7 @@ index 8ffe490..05a1e86 100755
  
    local out
    out=$(bash "$SELF" "$ROOT" 2>&1) || {
-@@ -151,6 +247,205 @@ self_check() {
+@@ -151,6 +251,216 @@ self_check() {
      return 1
    }
    echo "self-check: the audit passes this tree"
@@ -183,6 +187,17 @@ index 8ffe490..05a1e86 100755
 +    return 1
 +  fi
 +  echo "self-check: the audit refuses a pattern that survives only in history"
++
++  # A hit line is what gets quoted back at this file, so it must be the line `git grep` printed and
++  # nothing else. `git grep <commit>` already carries the commit, and prefixing it again printed
++  # `<sha>:<sha>:<path>...` -- a reader comparing this output with plain `git grep` would see a
++  # prefix the tool never generated.
++  if printf '%s\n' "$report2" | grep -Eq '^[0-9a-f]{40}:[0-9a-f]{40}:'; then
++    echo "SELF-CHECK FAILED: a history hit printed the commit id twice"
++    printf '%s\n' "$report2"
++    return 1
++  fi
++  echo "self-check: a history hit carries the commit once, as git grep printed it"
 +
 +  # A checkout git itself records as short. The walk succeeds, visits every commit the clone
 +  # has, and reports one -- a section that answered "clean" here would certify a history it

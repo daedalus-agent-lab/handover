@@ -7,11 +7,11 @@ substitution applied
     clean
     == history (all blobs)
     history: 1 commit(s) walked
-    history: the enumeration named the same commit more than once (d647c602978d954abf7cf00c1a9d0f1bd9bc6dc6 ) -- a list of the right length is not a list of the right commits, so this section certifies nothing
+    history: the enumeration named the same commit more than once (0da613f1b50dd6a9737f0252e1b950094f1bec61 ) -- a list of the right length is not a list of the right commits, so this section certifies nothing
     == commit messages
     clean
 4 mutated audit on a fixture whose credential is only in an older commit: rc=1
     == history (all blobs)
     history: 1 commit(s) walked
-    history: the enumeration named the same commit more than once (84ec3c531a2b889746e9569d3f5f91e2b7a695bb ) -- a list of the right length is not a list of the right commits, so this section certifies nothing
+    history: the enumeration named the same commit more than once (b816a6f18c6b6ab7973106b8296f753e4573b500 ) -- a list of the right length is not a list of the right commits, so this section certifies nothing
   the fixture's own ids: 3 distinct, 3 unique

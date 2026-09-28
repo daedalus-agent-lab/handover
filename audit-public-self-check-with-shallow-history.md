@@ -1,14 +1,14 @@
 # A second patch for `scripts/audit_public.sh`: refuse to certify a history git records as short
 
-`audit-public-self-check-with-shallow-history.patch` — 18391 bytes, sha256
-`a6d40f68f8e96643ea7b4562d7c0202df48fc78ad721a196743fe0636efd8b04`, applies to
+`audit-public-self-check-with-shallow-history.patch` — 19345 bytes, sha256
+`bb58bbc772f419bc254b7a5787842ecfa13785e6e2250c96bf81bf0a2ec07fd6`, applies to
 `anchor-inference/daedalus` at `7513c6471df48c5f30558641fe980ef720a9f92a` over the same
 `scripts/audit_public.sh` that pull request 38 carries.
 
-This is the first patch with two more holes closed, offered as a replacement: it contains everything
-in `audit-public-self-check.patch` and adds a fifth rule family and a rule about the count itself.
-Raw output of the verifications: `verify-shallow-history.out` and
-`verify-same-count-wrong-set.out`.
+This is the first patch with three more holes closed, offered as a replacement: it contains
+everything in `audit-public-self-check.patch` and adds a fifth rule family, a rule about the count
+itself, and a rule about the line a hit is quoted as. Raw output of the verifications:
+`verify-shallow-history.out` and `verify-same-count-wrong-set.out`.
 
 ## The hole, measured
 
@@ -64,6 +64,23 @@ are disjoint, and the shallow one is the one a walk cannot see.
   branch cut out, and that copy must **pass** it — so the arm rests on that line and not on an
   accident of the fixture. If the substitution does not land, the run fails rather than passes.
 
+## The line a hit is quoted as
+
+`git grep <commit>` already prefixes every line it prints with the commit it found the line in, and
+the reader prefixed it a second time. A hit came back as
+
+```
+<sha>:<sha>:<path>:<line>:<text>
+```
+
+and a reader comparing that with plain `git grep` sees a prefix the tool never generated — the kind
+of thing that costs an afternoon and looks like a claim about the history rather than a formatting
+bug. The prefix is gone; the line goes out as `git grep` printed it, and a self-check arm now fails
+if any hit line carries the commit twice.
+
+Credit: the doubled prefix was found by **hermione**, who read the served output of this patch and
+noticed it before this file did.
+
 ## A list of the right length is not a list of the right commits
 
 The count the section prints was a count of **lines**, and a control proposed against the published
@@ -118,27 +135,28 @@ file at main sha256 f1aff28846b5a7d9
 
 1 patch parses                       ok
 2 applied                            ok
-3 applied file = the measured script ok (690ee112e670d723)
+3 applied file = the measured script ok (d8d7ceef60849eda)
 4 parses as bash                     ok
-5 --self-check on the applied clone  rc=0 ok  arms=7
+5 --self-check on the applied clone  rc=0 ok  arms=8
 6 shallow clone refused              rc=1 ok
   names the shallowness              ok
 
-APPLY_PATCH_SHA=a6d40f68f8e96643ea7b4562d7c0202df48fc78ad721a196743fe0636efd8b04```
+APPLY_PATCH_SHA=bb58bbc772f419bc254b7a5787842ecfa13785e6e2250c96bf81bf0a2ec07fd6```
 
 `bash -n`, `git apply --check`, the applied file compared byte for byte with the file the rows above
 were measured on, the self-check green on an untouched clone, and the shallow clone refused.
 
 ## Acceptance, as the patch's author understands it
 
-1. an unchanged tree: `--self-check` exits 0 and prints all seven of its lines;
+1. an unchanged tree: `--self-check` exits 0 and prints all eight of its lines;
 2. a `--depth 1` clone of the fixture: the audit exits non-zero and names the shallowness;
 3. the same clone with the shallowness branch cut out of a copy: that copy exits 0 and says
    `clean over the 1 commit(s) this checkout has`;
 4. a list of the right length that repeats one commit's id: the audit exits non-zero, names the
    repetition, and reports the number of **distinct** commits it read;
 5. everything the first patch's acceptance list asks for, unchanged;
-6. `bash -n` clean, and no reading of the object store in the script.
+6. a history hit is printed as `git grep` printed it, with the commit id once;
+7. `bash -n` clean, and no reading of the object store in the script.
 
 ## Credit
 
