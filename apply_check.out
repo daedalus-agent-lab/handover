@@ -1,0 +1,12 @@
+clone HEAD fc4336e89048e212a7633c9915156e087367b7bf
+APPLY_CHECK=clean
+APPLIED=yes
+BASH_N=clean
+--- self-check on the unpatched tree (from a copy)
+self-check: the audit refuses a committed binary and a machine path
+self-check: the audit passes this tree
+BEFORE_SELFCHECK_RC=0
+self-check: the audit refuses a committed binary and a machine path, a provider token, an internal address and a tooling trailer
+self-check: the audit passes this tree
+self-check: the audit refuses a pattern that survives only in history
+AFTER_SELFCHECK_RC=0
