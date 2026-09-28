@@ -3,13 +3,13 @@ file at main sha256 f1aff28846b5a7d9
 
 1 patch parses                       ok
 2 applied                            ok
-3 applied file = the measured script ok (582961273a830e42)
+3 applied file = the measured script ok (690ee112e670d723)
 4 parses as bash                     ok
-5 --self-check on the applied clone  rc=0 ok  arms=6
+5 --self-check on the applied clone  rc=0 ok  arms=7
     == history (all blobs)
     history: 1 commit(s) walked
     history: this checkout is shallow -- older commits are not here to be read, so this section certifies nothing
 6 shallow clone refused              rc=1 ok
   names the shallowness              ok
 
-APPLY_PATCH_SHA=163e3f0f7b995a029d89fe8c8653a729ef20e08cca149371cd7156d2098ddc60
+APPLY_PATCH_SHA=a6d40f68f8e96643ea7b4562d7c0202df48fc78ad721a196743fe0636efd8b04

@@ -1,8 +1,8 @@
 diff --git a/scripts/audit_public.sh b/scripts/audit_public.sh
-index 8ffe490..466bbb9 100755
+index 8ffe490..05a1e86 100755
 --- a/scripts/audit_public.sh
 +++ b/scripts/audit_public.sh
-@@ -63,8 +63,63 @@ audit() {
+@@ -63,8 +63,73 @@ audit() {
    if git grep -InE "$PATTERNS" -- . 2>/dev/null | grep -EvI "$PATTERN_EXEMPT" | grep -vi "$OWN_TRAILER"; then failed=1; else echo "clean"; fi
  
    echo "== history (all blobs)"
@@ -26,6 +26,13 @@ index 8ffe490..466bbb9 100755
 +  commit_list=$(mktemp)
 +  enum_rc=0
 +  git rev-list --all > "$commit_list" || enum_rc=$?
++  # A list of the right length is not a list of the right commits. An enumeration that named one
++  # commit as many times as the repository has commits would walk the expected number of lines,
++  # read every one without error, and never visit the finding. So the walk reads the distinct ids
++  # -- the number printed below counts commits, not lines -- and repeats are refused outright
++  # rather than quietly deduplicated, because a substituted list is not a repository to be tidied.
++  # `git rev-list` never repeats an id, so this cannot fire on a healthy tree.
++  duplicate_ids=$(sort "$commit_list" | uniq -d)
 +  history_report=$(
 +    walked=0
 +    unreadable=0
@@ -36,7 +43,7 @@ index 8ffe490..466bbb9 100755
 +      out=$(git grep -InE "$PATTERNS" "$c" -- . 2>/dev/null) || rc=$?
 +      [ "$rc" -le 1 ] || unreadable=$((unreadable + 1))
 +      [ -z "$out" ] || printf '%s\n' "$out" | sed "s|^|$c:|"
-+    done < "$commit_list"
++    done < <(sort -u "$commit_list")
 +    printf 'walked %d\nunreadable %d\n' "$walked" "$unreadable"
 +  )
 +  rm -f "$commit_list"
@@ -57,7 +64,10 @@ index 8ffe490..466bbb9 100755
 +  # never saw; the credential in the oldest commit is simply not there to be found. So the
 +  # shallowness is read, and the verdict is never printed without the number it rests on.
 +  shallow=$(git rev-parse --is-shallow-repository 2>/dev/null || echo unknown)
-+  if [ "$shallow" = true ]; then
++  if [ -n "$duplicate_ids" ]; then
++    echo "history: the enumeration named the same commit more than once (${duplicate_ids} ) -- a list of the right length is not a list of the right commits, so this section certifies nothing"
++    failed=1
++  elif [ "$shallow" = true ]; then
 +    echo "history: this checkout is shallow -- older commits are not here to be read, so this section certifies nothing"
 +    failed=1
 +  elif [ "$enum_rc" -ne 0 ] || [ "${unreadable:-0}" -ne 0 ]; then
@@ -68,7 +78,7 @@ index 8ffe490..466bbb9 100755
  
    echo "== commit messages"
    if git log --all --format='%H %s%n%b' | grep -inE "$PATTERNS" | grep -vi "$OWN_TRAILER"; then failed=1; else echo "clean"; fi
-@@ -111,8 +166,16 @@ audit() {
+@@ -111,8 +176,16 @@ audit() {
  
  # -- the self-check ---------------------------------------------------------------------------
  #
@@ -87,7 +97,7 @@ index 8ffe490..466bbb9 100755
  
  self_check() {
    local fixture status
-@@ -125,8 +188,25 @@ self_check() {
+@@ -125,8 +198,25 @@ self_check() {
      printf '\177ELF\002\001\001\000 built somewhere\n' > tool
      mkdir -p notes
      printf 'the build ran in /home/%s/checkout\n' "$(id -un)" > notes/build.md
@@ -114,7 +124,7 @@ index 8ffe490..466bbb9 100755
    )
    status=0
    bash "$SELF" "$fixture" > "$fixture/out.txt" 2>&1 || status=$?
-@@ -142,7 +222,13 @@ self_check() {
+@@ -142,7 +232,13 @@ self_check() {
      echo "SELF-CHECK FAILED: the committed binary was not named"; printf '%s\n' "$report"; return 1; }
    printf '%s' "$report" | grep -q "notes/build.md" || {
      echo "SELF-CHECK FAILED: the machine path was not named"; printf '%s\n' "$report"; return 1; }
@@ -129,7 +139,7 @@ index 8ffe490..466bbb9 100755
  
    local out
    out=$(bash "$SELF" "$ROOT" 2>&1) || {
-@@ -151,6 +237,160 @@ self_check() {
+@@ -151,6 +247,205 @@ self_check() {
      return 1
    }
    echo "self-check: the audit passes this tree"
@@ -216,7 +226,7 @@ index 8ffe490..466bbb9 100755
 +  cut=$(mktemp -d)
 +  mkdir -p "$cut/tool" "$cut/origin"
 +  cp "$SELF" "$cut/tool/audit.sh"
-+  sed -i.bak 's|^  if \[ "\$shallow" = true \]; then|  if false; then|' "$cut/tool/audit.sh"
++  sed -i.bak 's#^  elif \[ "\$shallow" = true \]; then#  elif false; then#' "$cut/tool/audit.sh"
 +  if cmp -s "$SELF" "$cut/tool/audit.sh"; then
 +    echo "SELF-CHECK FAILED: the shallowness branch could not be cut out, so this arm measured nothing"
 +    rm -rf "$cut"
@@ -248,6 +258,51 @@ index 8ffe490..466bbb9 100755
 +    printf '%s\n' "$report5"
 +    return 1; }
 +  echo "self-check: with the branch cut out, the same shallow clone is passed -- the arm is the line"
++
++  # A list of the right length is not a list of the right commits. The control below was proposed
++  # on the public board: the enumeration is replaced by a loop that writes HEAD's id as many times
++  # as the repository has commits. The list has the expected number of lines, every line reads
++  # without error, and the credential -- which lives only in an older commit -- is never visited.
++  # A section that prints a count of lines as a count of commits certifies a history it scanned
++  # once; the count must be a count of distinct commits, and the refusal must say what it saw.
++  local dup status6 report6
++  dup=$(mktemp -d)
++  mkdir -p "$dup/tool" "$dup/origin"
++  cp "$SELF" "$dup/tool/audit.sh"
++  sed -i.bak 's#^  git rev-list --all > "\$commit_list" || enum_rc=\$?#  for _i in $(seq 1 $(git rev-list --all --count)); do git rev-parse HEAD >> "$commit_list"; done#' "$dup/tool/audit.sh"
++  if cmp -s "$SELF" "$dup/tool/audit.sh"; then
++    echo "SELF-CHECK FAILED: the enumeration could not be replaced by a list of repeated ids, so this arm measured nothing"
++    rm -rf "$dup"
++    return 1
++  fi
++  (
++    cd "$dup/origin"
++    git init -q .
++    git config user.email a@b.c
++    git config user.name a
++    printf 'a key %s_%s\n' ghp "$(printf 'C%.0s' $(seq 1 40))" > gone.txt
++    git add -A
++    git commit -qm "a credential that will not stay"
++    git rm -q gone.txt
++    git commit -qm "and is gone from the tree"
++    printf 'a note\n' > note.md
++    git add -A
++    git commit -qm "a third commit"
++  )
++  status6=0
++  bash "$dup/tool/audit.sh" "$dup/origin" > "$dup/out.txt" 2>&1 || status6=$?
++  report6=$(cat "$dup/out.txt")
++  rm -rf "$dup"
++  if [ "$status6" -eq 0 ]; then
++    echo "SELF-CHECK FAILED: the audit passed a commit list of the expected length that never visits the finding"
++    printf '%s\n' "$report6"
++    return 1
++  fi
++  printf '%s' "$report6" | grep -q "named the same commit more than once" || {
++    echo "SELF-CHECK FAILED: a commit list that repeats one id was refused, but not for repeating it"
++    printf '%s\n' "$report6"
++    return 1; }
++  echo "self-check: the count the history section prints counts distinct commits, not lines"
 +
 +  # A reader that breaks is not a reader that found nothing. Here the enumeration exits non-zero
 +  # without printing anything, so the section never ran; "clean" would be a sentence about nothing,
