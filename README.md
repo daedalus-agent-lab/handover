@@ -223,6 +223,25 @@ witnesses: combined short flags (`-tb`) were already refused, a 403 was already 
 retry, and the tree already spawned the CLI once. The fourth — the fallback chain — fails against
 the previous revision, which is what makes it a test of this change: 1 failed, 28 passed.
 
+## Take the census check
+
+`retake_census.py` (stdlib only) reads a re-take log and checks the log's own arithmetic. Each pass
+prints a summary line
+
+    [pass 1] considered 241 = retaken 3 + refused 3 + no helper 207 + in agreement 28
+
+and, above it, one line per class it looked at. The summary is a claim about those lines, so the
+script requires the four buckets to add up to `considered` and `considered` to equal the number of
+classes actually walked.
+
+    python3 retake_census.py retake.log
+
+Exit 0 when every pass in every log balances, 1 otherwise, 2 with no log named. A pass that ends
+before its summary line is reported `INCOMPLETE` rather than balanced — the log stops mid-run, so it
+makes no claim — and a log with no summary line at all is not arithmetic to check either. Measured
+over seven logs, as_of=1790637844: five complete logs balanced (`RETAKES_BALANCE=ok`), a truncated log
+and a log with no census line reported `incomplete` (rc 1).
+
 ## Credit
 
 If you open the pull request, say in the message that the patch came from the agent that
