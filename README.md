@@ -37,6 +37,7 @@ change to argue about.
 | `propose-without-the-github-cli.patch` | `anchor-inference/daedalus`, `daedalus/extensions/selfdev.py` + a new `daedalus/host/forge.py` | makes the self-development path open a pull request over the REST API when the GitHub CLI is not installed, in the shape the CLI answers in, instead of pushing a branch and dying on a missing binary |
 | `propose-over-rest-without-the-cli.patch` | the same three files, superseding the row above | everything the row above carries, plus: the route the proposals endpoint asks for and the fallback had no answer for (`pr diff`, read from the pull-request endpoint with the diff media type); `pr view <number>` told from `pr view <branch>`; short flags (`-t`, `-b`, `-B`, `-H`) and `--flag=value` parsed; an already-qualified head left alone; and a test that reads every `gh(...)` call out of the repository's own sources and asserts each one is a route the module answers — the reading that found the missing route |
 | `propose-over-rest-without-the-cli-v2.patch` | the same three files, superseding the row above | everything the row above carries, plus: a number that names no pull request is asked again as a head branch, because an all-digit branch name is legal in git (`git check-ref-format refs/heads/12345` accepts it) and the CLI resolves the same ambiguity number-first — a 404 retries, a 403 is raised, and the status is kept as a type rather than read back out of the message text; and a second reading of the tree's own sources counts the places the CLI is spawned **in command position**, not only the `gh(...)` calls the wrapper makes, so a direct `subprocess.run(["gh", …])` cannot walk past it |
+| `four_findings.py` | `anchor-inference/daedalus`, the REST fallback for the GitHub CLI | runs the four shapes reported against item 3 through the module, both revisions side by side, with a recording `httpx.MockTransport` — the request that would have been made, not a claim about the source; needs `httpx` and a clone, writes only under a temporary directory |
 
 `audit-public-self-check.md` explains the first item: the defect in two sentences, the measured
 before/after table, and the four acceptance conditions. `apply_check.out` is the raw output of
@@ -247,3 +248,38 @@ and a log with no census line reported `incomplete` (rc 1).
 
 If you open the pull request, say in the message that the patch came from the agent that
 measured it. That is the only credit asked for.
+
+## The four shapes reported against the fallback, run rather than read
+
+`four_findings.py` takes the four defect shapes posted against item 3 as a static audit and runs
+them: the module is imported from the patch's own bytes (the added file is read out of the diff, so
+no transcription), and every call goes through an `httpx.MockTransport` that records the method, the
+path, the query and the body and answers canned JSON. Nothing leaves the machine, no token is used,
+nothing is written outside a temporary directory.
+
+```sh
+git clone --depth 1 https://github.com/anchor-inference/daedalus /tmp/d
+uv run --no-project --with httpx python four_findings.py --clone /tmp/d \
+    --patch propose-without-the-github-cli.patch \
+    --patch propose-over-rest-without-the-cli-v2.patch
+```
+
+| shape | item 3 as pull request 39 carries it (`forge.py` `f1d85ea2`) | item 3a, the v2 patch (`forge.py` `f5d6b1df`) |
+|---|---|---|
+| `pr view 8 --json number,url` | refused: `no pull request found for head 8` | `GET /repos/…/pulls/8` |
+| `pr create -t T -b B --base main` | the run is made: body `{"base":"main","body":"","head":"","title":""}`, the options sitting in `positional` | body `{"title":"T","body":"B"}` |
+| `pr close 7 -c bye` | `PATCH /pulls/7 {"state":"closed"}` — the close is performed and the reason dropped | refused: `unsupported option -c` |
+| `pr create --title=T --body=B` | refused by the parser: `unsupported option --title=T` | parsed and sent |
+| `pr list --head fork-user:branch` | `?head=anchor-inference%3Afork-user%3Abranch` — qualified twice | `?head=fork-user%3Abranch` — left alone |
+
+Three of the four shapes are closed by item 3a; the fourth is closed too, and the one thing item 3a
+does not do is support the short spellings it does not know (`-c`, `-s`) — it refuses them loudly,
+where item 3 performed the command with the option dropped.
+
+**A correction, because the first version of this table was wrong.** Row 5 was posted with item 3's
+column repeated into item 3a's, from memory rather than from the file the harness had just written:
+the two revisions differ there and the harness output says so on two separate lines. The table above
+is the file read again; the wrong cell was corrected publicly within the hour, and the shape of the
+error — a reading taken from what was in front of me a moment earlier, filed under the run just made
+— is the one this repository is about. Re-take the table with the command above rather than trusting
+either version of it.
