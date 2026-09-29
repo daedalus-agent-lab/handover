@@ -25,22 +25,30 @@ commit `d6a3e106` (peek.py sha256 `f87329c9f0380a12…`):
 
 So on a root containing a link that points outside, one reader refuses the path and the other admits
 it. This script builds that fixture, runs **both rules as written above** against every shape, and
-says which shapes part them. It prints the limits of its own claim:
+says which shapes part them. It then says what the split is worth, which is not the same question:
 
-  * it runs the RULES, not the tree's functions with the tree's own walls, so it does not prove that
-    `BridgedFolderAccess` is ever reached with a link-shaped path in production;
-  * it does not read the tree at all -- pass `--tree DIR` to have it read the two rules out of a
-    checkout and compare them with the copies here, which is the only claim it can make about a tree.
+  * **the weaker reader is a pre-filter and the wall sits behind it.** The daemon is asked for the
+    path this rule admitted, and it decides again -- `ptyd/internal/sidechan/fs.go`, `allowed`,
+    accepts only when **both** the written path and its `EvalSymlinks` resolution lie under a root.
+    So the link shapes below are refused one process later, at the wall, by the rule that resolves.
+    `--tree DIR` reads that daemon file too and keeps the exit code honest: with the wall in view a
+    split is reported and the run exits 0, because no defect is claimed; the same split without the
+    wall in view exits 2, and so does a wall that no longer tests both forms.
+  * it runs the RULES, not the tree's functions with the tree's own walls, so it does not prove which
+    of the two readers a given caller reaches;
+  * it does not read the rules out of a tree unless `--tree DIR` is passed, which is the only claim
+    it can make about a tree.
 
     python3 containment-two-readers.py                     # build a fixture, print the table
-    python3 containment-two-readers.py --check             # exit 2 while the two rules part on a link
-    python3 containment-two-readers.py --tree <checkout>   # also re-read the two rules from a tree
+    python3 containment-two-readers.py --check             # exit 2 while the two rules part and the wall is not in view
+    python3 containment-two-readers.py --tree <checkout>   # also re-read the two rules and the wall from a tree
 
 The fixture is built in a fresh directory under the current working directory and removed again, so
 nothing is written outside it and no path outside it is named.
 
-Exit: 0 the two rules agree on every shape (the split is closed), 2 they part on a link-shaped path
-(the defect this file witnesses), 3 the tree's rules could not be read or differ from the copies.
+Exit: 0 the two rules agree on every shape, or they part and the wall behind the weaker one is shown
+in the tree to test both forms; 2 they part and nothing in view closes it; 3 the tree's rules could
+not be read or differ from the copies.
 """
 import os
 import posixpath
@@ -165,6 +173,37 @@ def table(root, outside):
     return rows, split
 
 
+def the_wall_that_closes_it(tree):
+    """`(found, why)` -- whether the daemon still decides on both the written and the resolved path.
+
+    The daemon is Go, so this is a TEXT reading of one function and not a parse: it is here to say
+    whether the backstop the weaker reader relies on is still written, not to prove what Go
+    compiles. It requires the accepting branch to name both forms -- `under(root, clean)` and
+    `under(rootReal, real)` -- which is the line that refuses a link out of a root.
+    """
+    path = Path(tree) / "ptyd" / "internal" / "sidechan" / "fs.go"
+    if not path.is_file():
+        return False, "no %s in the tree, so the wall behind the weaker reader is not in view" % path
+    text = path.read_text(encoding="utf-8", errors="replace")
+    body = None
+    lines = text.splitlines()
+    for number, line in enumerate(lines):
+        if line.startswith("func (f *FS) allowed("):
+            body = "\n".join(lines[number:number + 30])
+            break
+    if body is None:
+        return False, "fs.go carries no `func (f *FS) allowed(...)`, so nothing shows the wall's rule"
+    folded = " ".join(body.split())
+    has_clean = "under(root, clean)" in folded
+    has_real = "under(rootReal, real)" in folded
+    if not (has_clean and has_real):
+        return False, ("`allowed` does not test both forms (`under(root, clean)` %s, "
+                       "`under(rootReal, real)` %s), so the written path alone would decide"
+                       % ("yes" if has_clean else "NO", "yes" if has_real else "NO"))
+    return True, ("the daemon's `allowed` accepts only when both the written path and its "
+                  "`EvalSymlinks` resolution lie under a root (ptyd/internal/sidechan/fs.go)")
+
+
 def _normalise(source):
     """A method body with its docstring and its type annotations dropped.
 
@@ -253,14 +292,23 @@ def main(argv):
             print("%-44s %-26s %-16s %s" % (label, path[:26], a.split()[0],
                                             b.split()[0] + ("" if same else "   <-- PARTED")))
         print("shapes %d, parted %d: %s" % (len(rows), len(split), ", ".join(split) or "(none)"))
+        wall, why = (None, "the wall is not in view; pass --tree DIR to read it with the rules")
+        if tree:
+            wall, why = the_wall_that_closes_it(tree)
+            print("THE_WALL=%s -- %s" % ("closed" if wall else "not shown", why))
         if "--check" in argv:
-            if split:
-                print("CONTAINMENT_TWO_READERS=split on %d shape(s) -- the defect is present" % len(split))
+            if split and not wall:
+                print("CONTAINMENT_TWO_READERS=split on %d shape(s), and nothing in view closes it"
+                      % len(split))
                 return 2
+            if split:
+                print("CONTAINMENT_TWO_READERS=split on %d shape(s), confined to the pre-filter: the "
+                      "wall behind the weaker reader resolves both forms" % len(split))
+                return 0
             print("CONTAINMENT_TWO_READERS=ok -- the two readers agree on every shape")
             return 0
         print("CONTAINMENT_TWO_READERS=%s" % ("split" if split else "agree"))
-        return 0 if not split else 2
+        return 0
     finally:
         shutil.rmtree(base, ignore_errors=True)
 
