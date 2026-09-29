@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""The tests for `marker_reach.py`. Run: python3 test_marker_reach.py <path to marker_reach.py>
+
+Success prints `MARKER_REACH_TESTS=ok (<n> checks)` and exits 0; failure prints
+`MARKER_REACH_TESTS=FAILED (<n> case(s))` and exits 1. The module under test is imported
+from the path you give, and these bytes are the ones that judge it: edit them and the run
+says nothing about the task.
+"""
+import ast
+import importlib.util
+import sys
+
+LEFT, RIGHT = "left", "right"
+MARKERS = {LEFT: ("fragments",), RIGHT: ("parts_of_a_reading",)}
+
+
+def load(path):
+    spec = importlib.util.spec_from_file_location("marker_reach_under_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def module_of(bindings, unread=()):
+    return {"scopes": [{"name": "<module>", "line": 0, "bindings": dict(bindings)}],
+            "unread": list(unread)}
+
+
+def two_scopes(first, second, unread=()):
+    return {"scopes": [first, second], "unread": list(unread)}
+
+
+# Each case: (name, source, expected answer). Expected unread entries name `line` and `why`
+# only; the text of a node is required to be non-empty and at most 60 characters, which is
+# checked separately so that it does not depend on how this Python version unparses.
+CASES = [
+    ("a string constant names a token",
+     'A = "fragments"\n', module_of({"A": [LEFT]})),
+
+    ("a token inside a longer string is not a token",
+     'A = "xfragments"\n', module_of({"A": []})),
+
+    ("an identifier names a token",
+     "A = fragments.read\n", module_of({"A": [LEFT]})),
+
+    ("an attribute name names a token",
+     "A = mod.parts_of_a_reading\n", module_of({"A": [RIGHT]})),
+
+    ("a keyword argument's name names a token",
+     "A = call(fragments=1)\n", module_of({"A": [LEFT]})),
+
+    ("a chain is followed to a fixed point, whatever the order it is written in",
+     'A = B\nB = C\nC = "fragments"\n', module_of({"A": [LEFT], "B": [LEFT], "C": [LEFT]})),
+
+    ("both markers at once",
+     'A = call(fragments, "parts_of_a_reading")\n', module_of({"A": [LEFT, RIGHT]})),
+
+    ("a name bound to nothing is present and carries nothing",
+     "A = 1\n", module_of({"A": []})),
+
+    ("a name the scope never binds is absent",
+     "A = 1\nB = unknown_name\n", module_of({"A": [], "B": []})),
+
+    ("a docstring naming a token binds nothing",
+     '"""fragments"""\n', module_of({})),
+
+    ("an annotation with a value binds",
+     'A: str = "fragments"\nB: str\n', module_of({"A": [LEFT]})),
+
+    ("a for target binds to the iterable",
+     "for x in [fragments]:\n    pass\n", module_of({"x": [LEFT]})),
+
+    ("a tuple target binds each name to the whole value",
+     "a, b = one_two(fragments)\n", module_of({"a": [LEFT], "b": [LEFT]})),
+
+    ("a function's own bindings are its own, and the enclosing ones are visible inside it",
+     'outer = "fragments"\ndef f():\n    used = outer\n    mine = "parts_of_a_reading"\n',
+     two_scopes({"name": "<module>", "line": 0, "bindings": {"outer": [LEFT]}},
+                {"name": "f", "line": 2,
+                 "bindings": {"mine": [RIGHT], "used": [LEFT]}})),
+
+    ("a name rebound inside a function shadows the outer one",
+     'x = "fragments"\ndef f():\n    x = "something else"\n    y = x\n',
+     two_scopes({"name": "<module>", "line": 0, "bindings": {"x": [LEFT]}},
+                {"name": "f", "line": 2, "bindings": {"x": [], "y": []}})),
+
+    ("a nested function's body belongs to it, not to the one holding it",
+     'def outer():\n    a = "fragments"\n    def inner():\n        b = "parts_of_a_reading"\n',
+     {"scopes": [{"name": "<module>", "line": 0, "bindings": {}},
+                 {"name": "outer", "line": 1, "bindings": {"a": [LEFT]}},
+                 {"name": "inner", "line": 3, "bindings": {"b": [RIGHT]}}],
+      "unread": []}),
+]
+
+
+def main(argv):
+    if len(argv) != 1:
+        print("usage: test_marker_reach.py <path to marker_reach.py>")
+        return 2
+    module = load(argv[0])
+    checks, failures = 0, []
+
+    def says(condition, case, detail):
+        nonlocal checks
+        checks += 1
+        if not condition:
+            failures.append("%s: %s" % (case, detail))
+
+    for name, source, expected in CASES:
+        read, answer = module.reach_of(source, MARKERS)
+        says(read is True, name, "read was %r" % (read,))
+        if answer != expected:
+            says(False, name, "answer was %r" % (answer,))
+
+    # The unread rules, by line and reason.
+    unread_cases = [
+        ("with ... as x is unread and binds nothing",
+         'with open("fragments") as handle:\n    pass\n', {}, [(1, "with ... as x does not bind")]),
+        ("x += value is unread",
+         "x = 1\nx += 2\n", {"x": []}, [(2, "x += value does not bind")]),
+        ("an import is unread",
+         "import os\nfrom os import path\n", {}, [(1, "import does not bind here"),
+                                                  (2, "import does not bind here")]),
+        ("global is unread although the name is bound",
+         'def f():\n    global G\n    G = "fragments"\n', {"G": [LEFT]},
+         [(2, "global and nonlocal do not bind here")]),
+        ("a lambda body is not read",
+         'F = lambda: "fragments"\n', {"F": []}, [(1, "a Lambda body is not read")]),
+        ("a comprehension's own target does not bind",
+         "xs = [y for y in fragments]\n", {"xs": [LEFT]},
+         [(1, "a comprehension's own target does not bind")]),
+    ]
+    for name, source, bindings, wanted in unread_cases:
+        read, answer = module.reach_of(source, MARKERS)
+        says(read is True, name, "read was %r" % (read,))
+        if not read:
+            continue
+        scope = answer["scopes"][-1] if name.startswith("global") else answer["scopes"][0]
+        says(scope["bindings"] == bindings, name, "bindings were %r" % (scope["bindings"],))
+        got = [(i["line"], i["why"]) for i in answer["unread"]]
+        says(got == wanted, name, "unread was %r" % (got,))
+        for item in answer["unread"]:
+            says(isinstance(item["node"], str) and 0 < len(item["node"]) <= 60, name,
+                 "the node text was %r" % (item.get("node"),))
+
+    # The answer must be readable by a reader that only evaluates literals.
+    for name, source, _ in CASES:
+        _, answer = module.reach_of(source, MARKERS)
+        try:
+            round_tripped = ast.literal_eval(repr(answer))
+        except Exception as exc:
+            says(False, name, "ast.literal_eval refused the answer: %r" % (exc,))
+            continue
+        says(round_tripped == answer, name, "the answer did not survive literal_eval")
+
+    # An empty token tuple is reached by nothing.
+    read, answer = module.reach_of("A = fragments\n", {"empty": ()})
+    says(read is True and answer["scopes"][0]["bindings"] == {"A": []},
+         "an empty marker is reached by nothing", "answer was %r" % (answer,))
+
+    # Refusals: wrong shapes and a source that does not parse, and never an exception.
+    refusals = [
+        ("a source that is not a string", None, MARKERS),
+        ("markers that are not a mapping", "A = 1\n", None),
+        ("a token list that is not a tuple", "A = 1\n", {"m": ["a"]}),
+        ("a token that is not a string", "A = 1\n", {"m": ("a", 1)}),
+        ("a marker name that is not a string", "A = 1\n", {1: ("a",)}),
+        ("a source that does not parse", "def f(:\n", MARKERS),
+    ]
+    for name, source, markers in refusals:
+        try:
+            read, answer = module.reach_of(source, markers)
+        except Exception as exc:
+            says(False, name, "it raised %r" % (exc,))
+            continue
+        says(read is False and answer == {}, name, "gave %r, %r" % (read, answer))
+
+    if failures:
+        print("MARKER_REACH_TESTS=FAILED (%d case(s))" % len(failures))
+        for line in failures:
+            print("  " + line)
+        return 1
+    print("MARKER_REACH_TESTS=ok (%d checks)" % checks)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
