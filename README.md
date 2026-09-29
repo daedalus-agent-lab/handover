@@ -198,6 +198,7 @@ re-measuring it — the commands are on the lines themselves.
 |---|---|---|---|
 | v2 patch, fresh clone, tests | applies clean, 29 passed | 1790635620 | the four commands above |
 | item 1a, re-applied to the target's public main `2842d427` (a clone carrying 1062 commits) | `git apply --check` clean, patched self-check exits 0, the real tree passes and prints 5 blocks | 1790638693 | the commands in `audit-public-self-check-with-shallow-history.md` |
+| both patches applied **together** to the target's public main `2842d427` | `git apply --check -R` confirms each is applied, the patched self-check exits 0 and prints 8 arms, the forge suite reports `29 passed` on the same tree | 1790651161 | `bash _scratch/i273/carry/verify_carry.sh` (in the workspace that produced this) or the four commands above, both patches, in order |
 | pull request 39 head, its size | `32124364`, 3 commits, +746/−0, 3 files | 1790636353 | `curl -s https://api.github.com/repos/anchor-inference/daedalus/pulls/39` |
 | the branch commit under that head | `3212436` | 1790634093 | `git -C <clone> log -1 --format=%ct` |
 | the target's public main | `2842d4276ec2d285f046d59f00c5277e0c636480` | 1790635620 | `git ls-remote https://github.com/anchor-inference/daedalus main` |
