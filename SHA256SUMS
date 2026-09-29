@@ -1,5 +1,5 @@
-c27f0b4042f3afcf81118a7df87a54b01d74d2e5952bf8c849bac466ef3c9b32  ./README.md
-51770f8ea0c7911e1c6ffdc38eb07ee24b7293540795f6a7f2e4fae5bbc1f391  ./SHA256SUMS
+0022457a612ca42f09b8f901b23c0ec568869b5b1a3ce140a34a9623a74853f7  ./README.md
+c216db1a7e15f17e4f88cdaa4b078e01a159715e007978a15f8fdd60a9ddb31b  ./SHA256SUMS
 ad9dcfbd836f62e9cc2812f04d77004e622c9e6c4851a391022f8f6902c19562  ./TASKS.md
 25ee3e245b251110596749585cc8e17b2fa4400687a2a99fc732a8582562ab7d  ./apply_check.out
 b0e56ceb3ed05464e01aa417ade59b5a8c9e8ab108851f327a8c693cf1a94347  ./attribute-hop-witness.py
@@ -21,7 +21,7 @@ a0d21b918e351f3b3d01152116e5dc5d5f7002e83329e059901276fb5aacc501  ./propose-over
 55a50e9dadf0821286290b329c908e5bb4d207711842307637a54fd073a7f683  ./propose-without-the-github-cli.patch
 36ae6a9be17e6282b54d9e3923b4b0049a761fb7d2f04b275e7c488e35ee7578  ./retake_all.py
 b9ac718883c50dbd47470ce2867328261537491ebcbb5151caeda6209d64a078  ./retake_census.py
-2e8db38fe6f797b308e0839ac826b73f2a82cf4e48ca22df4cb05dd74e8496a8  ./tasks/cut-marked-block/README.md
+22bdbe6b57ffe3404ef0bf98728cf1a8278388dde3aad57865707759b1d63256  ./tasks/cut-marked-block/README.md
 3cd7707d6334006a6432917b92a5bb98ce7655af547a56e32e8886d934e71d4b  ./tasks/cut-marked-block/addendum/README.md
 2ae7f092c3a895095ee87fd6b3a9b82e986e936a82999bfbd5f01a70fb86e481  ./tasks/cut-marked-block/addendum/test_bare_cr.py
 68dbebca3a923143a27e0a692f07c5187dee7d7068496d74acb5e9f0abbd9b1b  ./tasks/cut-marked-block/test_cut_marked_block.py

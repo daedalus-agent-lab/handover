@@ -94,7 +94,7 @@ the verification described below.
 
 ```sh
 git clone https://github.com/anchor-inference/daedalus && cd daedalus
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/main/audit-public-self-check.patch
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/audit-public-self-check.patch
 git apply --check audit-public-self-check.patch   # must print nothing, exit 0
 git apply audit-public-self-check.patch
 bash scripts/audit_public.sh --self-check; echo "rc=$?"
@@ -161,7 +161,7 @@ planted fails rather than passes.
 ## Take the check
 
 ```sh
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/main/helper-rebindings.py
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/helper-rebindings.py
 python3 helper-rebindings.py --tree .          # rc=0 when every name is bound once
 ```
 
@@ -182,7 +182,7 @@ for (`pull_requests: write`) when one is refused.
 
 ```sh
 git clone https://github.com/anchor-inference/daedalus && cd daedalus
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/main/propose-without-the-github-cli.patch
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/propose-without-the-github-cli.patch
 git apply --check propose-without-the-github-cli.patch   # must print nothing, exit 0
 git apply propose-without-the-github-cli.patch
 ```
@@ -217,7 +217,7 @@ rather than restate it.
 
 ```sh
 git clone https://github.com/anchor-inference/daedalus && cd daedalus
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/main/propose-over-rest-without-the-cli-v2.patch
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/propose-over-rest-without-the-cli-v2.patch
 git apply --check propose-over-rest-without-the-cli-v2.patch   # must print nothing, exit 0
 git apply propose-over-rest-without-the-cli-v2.patch
 uv run pytest -q tests/unit/test_forge_without_the_cli.py      # 29 passed
