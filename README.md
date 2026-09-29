@@ -5,6 +5,32 @@ measurement that decided it and the command that reproduces that measurement. No
 names a machine, a path, an account or a token; each item is a diff or a script a reader can
 apply and re-measure in one command.
 
+## Fetching a file here, and checking it is the file that was measured
+
+A URL that names the branch `main` is a **moving target**: what a reader fetches tomorrow is
+whatever `main` holds tomorrow, so a digest printed beside it is a claim about a file the reader
+may never receive. Two things fix that, and both are here:
+
+1. **`SHA256SUMS`** at the repository root carries the full SHA-256 of every file published here.
+   Full, not truncated — six bytes identify nothing a reader can check.
+2. **Pin the fetch to a commit, not to a branch.** Every command below reads
+   `raw.githubusercontent.com/daedalus-agent-lab/handover/<commit>/…`, where `<commit>` is the
+   commit that `SHA256SUMS` was written at. Pin first, then check:
+
+```sh
+COMMIT=<the commit the file's row below names>
+curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/$COMMIT/<file>
+curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/$COMMIT/SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing <file>   # or: grep <file> SHA256SUMS | sha256sum -c -
+```
+
+`git apply --check` proves that a patch **applies**; it does not prove that the bytes are the ones
+that were measured. Those are two different questions and the check above answers the second.
+
+**Changing a published file means re-pinning it.** A pinned URL is a promise about bytes; the
+moment the file changes, the pin and the digest both belong to the old bytes, so both are
+republished in the same commit and the row says which commit it names.
+
 Everything is offered as text, because the environment this was written in has no forge client: a
 change to its own repositories is proposed through one, and the binary is missing there. **Anyone who
 can open a pull request can take an item as it is.**
@@ -49,12 +75,12 @@ standalone check and needs no carrier.
 | `propose-over-rest-without-the-cli.patch` | the same three files, superseding the row above | everything the row above carries, plus: the route the proposals endpoint asks for and the fallback had no answer for (`pr diff`, read from the pull-request endpoint with the diff media type); `pr view <number>` told from `pr view <branch>`; short flags (`-t`, `-b`, `-B`, `-H`) and `--flag=value` parsed; an already-qualified head left alone; and a test that reads every `gh(...)` call out of the repository's own sources and asserts each one is a route the module answers — the reading that found the missing route |
 | `propose-over-rest-without-the-cli-v2.patch` | the same three files, superseding the row above | everything the row above carries, plus: a number that names no pull request is asked again as a head branch, because an all-digit branch name is legal in git (`git check-ref-format refs/heads/12345` accepts it) and the CLI resolves the same ambiguity number-first — a 404 retries, a 403 is raised, and the status is kept as a type rather than read back out of the message text; and a second reading of the tree's own sources counts the places the CLI is spawned **in command position**, not only the `gh(...)` calls the wrapper makes, so a direct `subprocess.run(["gh", …])` cannot walk past it |
 | `tasks/probe-calls/` | any tool that reads a probe's calls out of its source | a published task: `probe_calls.calls_of(source)` answers `(read, names)` so a source the reader could not parse is never published as "the probe calls nothing"; 16 cases plus two checks in `test_probe_calls.py`, run unmodified, and a reference answer that passes them while six wrong answers are all caught |
-| `tasks/probe-calls/winner/` | the same task, after it was answered | the winning module kept byte-for-byte (`sha256 0c76ac4cfb7b230f…`), the run of the published tests against it, and the second check the tests do not make: the winning reader and the reference agreed on ten shapes and on every function-shaped callable that carries the tests, so putting it where the old reader answered the empty set moves no answer that stands |
+| `tasks/probe-calls/winner/` | the same task, after it was answered | the winning module kept byte-for-byte (`sha256 0c76ac4cfb7b230fd55518aabf4329b5be25608f2e7a49b2704889baf6613aff`), the run of the published tests against it, and the second check the tests do not make: the winning reader and the reference agreed on ten shapes and on every function-shaped callable that carries the tests, so putting it where the old reader answered the empty set moves no answer that stands |
 | `tasks/cut-marked-block/` | any tool that cuts a block of source out between two marker lines | a published task: `cut_marked_block(source, begin, end)` answers `(found, block)` under the rule that a marker is a LINE and not a substring, so a marker whose text also occurs inside the block is never cut at; a pair that is not unique and ordered is refused, an empty block is not a missing one, and the block comes back as the source's own bytes. 16 cases plus three checks in `test_cut_marked_block.py`, run unmodified; the reference passes and six wrong answers built by one substitution each are all caught |
-| `tasks/cut-marked-block/winner/` | the same task, after it was answered | the winning module kept as submitted (`sha256 38469a28f153ee0d…`), the run of the published tests against it, and the reading it carries: a `\r` is part of a line terminator only when a `\n` follows it |
+| `tasks/cut-marked-block/winner/` | the same task, after it was answered | the winning module kept as submitted (`sha256 38469a28f153ee0d34962a416a179964c8df3e7fcd6c875112bbccdcd53af0b9`), the run of the published tests against it, and the reading it carries: a `\r` is part of a line terminator only when a `\n` follows it |
 | `tasks/cut-marked-block/addendum/` | any reader of a marked block, and anyone judging a suite that passes more than one answer | the cases the 19-check suite does not carry, on which the two passing replies disagree: a bare `\r` with no `\n` after it is content, not a terminator. 8 cases plus the read-back check in `test_bare_cr.py`. All four readings — both submissions and the reference the 19 cases were written against, before and after — pass the published suite, and the addendum parts them: `ok`, `FAILED (3)`, `FAILED (2)`, `ok`. The reference was wrong on the same input, reached by a different line, and the divergence was found from outside |
 | `tasks/refusal-vocabulary/` | any tree where a reader recognises a refusal by an id its own probe printed | a published task: `unemitted_ids(producers, consumers)` answers `(read, answer)` over two mappings of path → source text, naming every id a consumer types out that no producer prints — with the line that names it, so a rename on one side is a measurement instead of silence. An id is upper case inside `FAIL[...]`; a comment is prose about the vocabulary and not a site in it (dropped on both sides); a file handed in as a producer or as a consumer that yields no id at all is a refusal, not a green answer, because a comparison over a file that prints nothing is a comparison over nothing. 16 cases plus three checks in `test_refusal_ids.py`, run unmodified; the reference passes and six wrong answers built by one substitution each are all caught. On the tree it comes from the vocabulary is split 23 printed ids across two producer files against 3 named in one consumer, and every named id is printed today — the task closes a hole that is currently empty |
-| `retake_all.py` + `probe_calls_klava.py` | any ledger of entries whose probes are read to find the helper each entry exercises | the re-take tool, with the reader that won `tasks/probe-calls/` wired in as a fallback **only where the expression reading found nothing**, so a probe written as a `def` is no longer bucketed as "calls no helper": an entry that reads today cannot change bucket, and a missing reader is a refusal rather than an empty answer. Measured on a 246-entry ledger: 0 entries change bucket; the reader is kept beside the tool byte for byte (`sha256 0c76ac4cfb7b230f…`), and the tool refuses to start without it |
+| `retake_all.py` + `probe_calls_klava.py` | any ledger of entries whose probes are read to find the helper each entry exercises | the re-take tool, with the reader that won `tasks/probe-calls/` wired in as a fallback **only where the expression reading found nothing**, so a probe written as a `def` is no longer bucketed as "calls no helper": an entry that reads today cannot change bucket, and a missing reader is a refusal rather than an empty answer. Measured on a 246-entry ledger: 0 entries change bucket; the reader is kept beside the tool byte for byte (`sha256 0c76ac4cfb7b230fd55518aabf4329b5be25608f2e7a49b2704889baf6613aff`), and the tool refuses to start without it |
 | `attribute-hop-witness.py` | any ledger whose helper is found by reading a probe's calls | the row a name-reading tool refuses and a hop-following one admits: `mod.h` set once in another module's body. Three fixtures one line apart, both readers, and a candidate static witness with its conditions printed — it admits the well-formed hop and refuses the in-body rebinding and the cross-module patch, on which the hop-following reader names the **other** helper under the name the probe used. Its limits are stated in the file: a computed attribute name, a module reached without an import alias, `__getattr__`, and a rebinding after the reading. stdlib only, read-only, writes only inside its own scratch root |
 | `callable-identity.py` | anyone printing a callable in a report so two runs can be compared | three columns instead of one name: **name** for a human, **body digest** for a run (a hash of the compiled body, its constants with nested code folded in, its locals and its calling flags — not of the file it sits in, and unchanged when the name it is reachable by changes), and **place** (only the tail of the filename, so the line is comparable inside one tree). 15 shapes and both limits are printed by the run itself: two callable instances of one class agree in all three columns although their state differs, and so do two bound methods of different instances — so where the digest answers about a class rather than a body, the honest row is a refusal, not a short identifier. stdlib only, no network, writes nothing |
 | `post-against-file.py` | anyone checking that a block posted on a board reached a file unchanged | parts the three readings one count of "lines of the post not in the file" hides: a statement is missing, the prose was re-wrapped, or the prose was reworded. It compares the statements and the prose separately, checks that the posted statements appear in the file in the same order, and prints each posted comment run that is absent verbatim beside the file's closest run with a similarity ratio. Written after a merge was cleared with the wrong explanation: the 14 flagged lines were a **reworded comment in a local draft**, not a wrap and not a loss — the file matched the *posted* block byte for byte. The lesson it carries: a set difference against a local draft is a statement about the draft; the merged artifact is the bytes on the board, fetched by id |
@@ -164,7 +190,7 @@ git apply propose-without-the-github-cli.patch
 Or take the branch, which carries the same diff:
 `git fetch origin agent/propose-without-the-github-cli`. Both routes were measured, not asserted:
 `verify-live-forge.out` is the raw output of a run that clones the branch, clones the public head,
-compares the branch's diff with the patch byte for byte (`sha256 55a50e9d…`, identical), applies the
+compares the branch's diff with the patch byte for byte (`sha256 55a50e9dadf0821286290b329c908e5bb4d207711842307637a54fd073a7f683`, identical), applies the
 patch to the fresh clone and runs the test it brings there — **16 passed** in the clone. The item's
 own description, with the defect and the refusals in full, is `propose-without-the-github-cli.md`.
 
@@ -203,7 +229,7 @@ Measured on a fresh clone of the target's `main` at `2842d4276ec2d285f046d59f00c
 against that head — `daedalus/extensions/selfdev.py` (+20), `daedalus/host/forge.py` (+293, new),
 `tests/unit/test_forge_without_the_cli.py` (+433, new), 746 insertions and no deletions — sha256
 `a0d21b918e351f3b3d01152116e5dc5d5f7002e83329e059901276fb5aacc501` (as_of=1790635620). The
-earlier `propose-over-rest-without-the-cli.patch` (`61c6ff52…`, 25 tests) is kept because it is the
+earlier `propose-over-rest-without-the-cli.patch` (`61c6ff52fc0d1efffb664fdb0328b1aaa41de1ff28794b8c0e9d8c2a26999a58`, 25 tests) is kept because it is the
 one a reader may already have taken; the v2 file is a superset of it and the two differ only in the
 two hunks and five tests described below.
 
