@@ -79,23 +79,36 @@ Read these as the specification; the tests hold you to the letter of them.
    inside a function shadows the outer one rather than adding to it.
 4. What binds a name: `x = value`, `x: T = value`, `for x in value`, and **each** name in a
    tuple or list target binds to that whole value expression (`a, b = one_two()` gives both
-   names whatever `one_two()` reaches).
+   names whatever `one_two()` reaches). A starred element binds the name it stars: in
+   `a, *b = one_two()` both `a` and `b` are bound.
 5. What does **not** bind, and is reported in `unread` once per statement -- with the line it
    stands on and its text shortened to 60 characters and its whitespace folded: `with ... as
    x` (only when it has an `as`), `x += value`, `import` and `from ... import`, `global` and
-   `nonlocal`, a `Lambda` body, and a comprehension's own target. An `x: T` with no value
-   binds nothing and is **not** unread: it declares.
+   `nonlocal`, a `Lambda` body, and a comprehension's own target. Once per statement: a
+   comprehension with two clauses is one entry, not two. An `x: T` with no value binds
+   nothing and is **not** unread: it declares. **The `why` text is part of the contract and
+   the tests compare it by equality**, so the six strings are, verbatim:
+   `with ... as x does not bind` · `x += value does not bind` · `import does not bind here` ·
+   `global and nonlocal do not bind here` · `a Lambda body is not read` ·
+   `a comprehension's own target does not bind`.
 6. A scope is the module and the body of every `FunctionDef` and `AsyncFunctionDef`. A
    nested function's body belongs to that function, not to the one holding it; the names the
    enclosing scope binds are visible inside it; the names it binds are not visible outside;
-   and a def's parameters, defaults and decorators are read by neither scope.
+   and a def's parameters, defaults and decorators are read by neither scope. **Scopes come
+   back breadth first**: the module, then every function in it in source order, then the
+   functions inside those, and so on -- a function nested two deep stands after its holder's
+   siblings.
 7. A `Lambda`'s body is not descended into at all, and is reported unread. So a binding
    written inside one is invisible, in either direction.
-8. Markers are compared by exact token text. A marker whose token tuple is empty is reached
-   by nothing.
+8. Markers are compared by exact token text, `case` included: `"Fragments"` does not reach
+   the token `fragments`. A marker whose token tuple is empty is reached by nothing.
 9. `read` is `False` and the answer is `{}` -- with no exception, ever -- when `source` is
    not a string, `markers` is not a mapping, a marker name is not a string, a token tuple is
-   not a tuple, a token is not a string, or the source does not parse.
+   not a tuple, a token is not a string, or the source does not parse. Any mapping is a
+   mapping: an `OrderedDict` or a read-only view is accepted, and what is refused is what is
+   not a mapping at all. A source that `ast.parse` accepts is read -- however long its
+   expressions are -- and `(False, {})` means the source did not parse or the arguments were
+   the wrong shape, never that the reader gave up.
 
 ## The tests, and how this is judged
 
@@ -116,17 +129,35 @@ task is exactly that sentence.
 The reference implementation in this directory must pass them, byte for byte as published:
 
 ```bash
-python3 test_marker_reach.py marker_reach.py     # MARKER_REACH_TESTS=ok (64 checks)
+python3 test_marker_reach.py marker_reach.py     # MARKER_REACH_TESTS=ok (82 checks)
 python3 mutants.py marker_reach.py test_marker_reach.py
-# mutants caught 8/8, refused to build 0 -> MARKER_REACH_MUTANTS=ok
+# mutants caught 14/14, refused to build 0 -> MARKER_REACH_MUTANTS=ok
 ```
 
 `mutants.py` is part of what is published on purpose: it substitutes one thing at a time in
 the reference -- a string constant stops naming a token, a token starts matching anywhere
-inside a longer string, a rebound name stops shadowing, a tuple target binds nothing, the
-fixed point stops after one pass, the arguments are never checked, a nested function is read
-as part of the one holding it, a lambda stops being reported -- and requires the suite to go
-red for **each** of them. A suite nobody has watched fail is a suite nobody has watched.
+inside a longer string, a token starts matching case-insensitively, a rebound name stops
+shadowing, a tuple target binds nothing, a starred target binds nothing, a nested function
+starts seeing only the module scope, a nested function is read as part of the one holding it,
+the fixed point stops after one pass, two clauses of one comprehension are reported twice, a
+lambda stops being reported, `async def` stops being a scope, only a `dict` is a mapping, the
+arguments are never checked -- and requires the suite to go red for **each** of them. A suite
+nobody has watched fail is a suite nobody has watched.
+
+**A review of the first version of this package changed it, and the changes are the useful
+part of this file.** An independent reader was asked to defeat the four claims above and
+found, with commands, that: eight of nine hand-written wrong modules passed the suite, among
+them a starred target that binds only the first name (`a, *b = one_two()`), a case-insensitive
+token match, and a nested scope that sees only the module scope -- all now cases, all now
+mutants; the `why` strings, which the README never stated, were compared by equality, so a
+module correct by the rules lost six cases to wording -- the strings are now written out
+above; the reference itself bound only one name of a starred target, which was a defect in
+the reference and not in the suite; a comprehension with two clauses produced two `unread`
+entries against its own rule 5; and a source `ast.parse` accepts came back `(False, {})`
+because a recursive walk hit the interpreter's depth limit and the refusal of a long
+expression was reported as a source that does not parse -- the walk is iterative now, and a
+3000-term expression is one of the cases. The suite also stopped dying with a traceback when
+a module raises: a module that cannot be read is now a failed case like any other.
 
 A module that passes must pass for the right reason. If yours is right and the suite is
 wrong, that is a finding: reply with the case, the module and the command, and it will be

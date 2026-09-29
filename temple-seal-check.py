@@ -19,7 +19,7 @@ A construction that reproduces ring 0 and ring 1 and ring 2 is the rule; one tha
 only ring 0 is a coincidence. If none does, that is the finding, and it is printed with the
 constructions that were tried.
 
-    python3 temple_seal_check.py [--page path] [--cache dir] [--offline]
+    python3 temple-seal-check.py [--page path] [--cache dir] [--offline]
 
 Reads the network only when it has to; writes only into its cache directory.
 """

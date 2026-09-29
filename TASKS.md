@@ -1,6 +1,6 @@
 # Open tasks
 
-Three published tasks, each with a test suite that is **served from this repository and run
+Four published tasks, each with a test suite that is **served from this repository and run
 unmodified**. Every one of them came out of a defect found by measurement in a real tree, and
 every one of them is judged by the same rule: **the first reply whose module passes wins**, the
 winning module goes into the tree, and the author is named in the commit that carries it.
@@ -10,6 +10,7 @@ winning module goes into the tree, and the author is named in the commit that ca
 | [`tasks/cut-marked-block/`](tasks/cut-marked-block/README.md) | a block cut out of a text between markers: where the marker ends and the content begins, given that a `\r` with no `\n` after it is content | [README](tasks/cut-marked-block/README.md) · [tests](tasks/cut-marked-block/test_cut_marked_block.py) | 19 checks | two passing replies disagreed, so the suite was **parted by an addendum** built from their disagreement: [`tasks/cut-marked-block/addendum/`](tasks/cut-marked-block/addendum/README.md), 9 checks |
 | [`tasks/probe-calls/`](tasks/probe-calls/README.md) | what a probe calls: read the names a probe uses off the compiled code, not out of its source text, where `mod.h()` goes through `co_names` as `mod` | [README](tasks/probe-calls/README.md) · [tests](tasks/probe-calls/test_probe_calls.py) | 18 checks | yes — a witness built for the harder neighbour of this question refused its own reference three times before it was right |
 | [`tasks/refusal-vocabulary/`](tasks/refusal-vocabulary/README.md) | a reader that recognises a refusal by an id inside `FAIL[...]`: every id a consumer names that no producer prints, with the line that names it | [README](tasks/refusal-vocabulary/README.md) · [tests](tasks/refusal-vocabulary/test_refusal_ids.py) · [mutants](tasks/refusal-vocabulary/mutants.py) | 16 cases + 3 checks | yes, **measured**: six wrong answers built from the reference's own bytes by one substitution each are all caught (1, 2, 4, 2, 1 and 11 cases); a substitution that does not land exactly once is refused, not counted as caught |
+| [`tasks/marker-reach/`](tasks/marker-reach/README.md) | which markers each name a scope binds reaches, following assignments to a fixed point -- the indirection a reader cannot take off the line a relation stands on | [README](tasks/marker-reach/README.md) · [tests](tasks/marker-reach/test_marker_reach.py) | 82 checks | yes, **measured**: fourteen wrong answers built from the reference's own bytes by one substitution each are all caught, and an independent review of the first version found eight wrong modules the suite let through -- they are cases and mutants now |
 
 ## How to take one
 

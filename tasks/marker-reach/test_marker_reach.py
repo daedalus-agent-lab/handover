@@ -90,6 +90,32 @@ CASES = [
                  {"name": "outer", "line": 1, "bindings": {"a": [LEFT]}},
                  {"name": "inner", "line": 3, "bindings": {"b": [RIGHT]}}],
       "unread": []}),
+
+    ("a starred target binds the name it stars",
+     "a, *b = one_two(fragments)\n", module_of({"a": [LEFT], "b": [LEFT]})),
+
+    ("a starred for target binds the name it stars",
+     "for *a, b in [fragments]:\n    pass\n", module_of({"a": [LEFT], "b": [LEFT]})),
+
+    ("a token is matched exactly, not case-insensitively",
+     'A = "Fragments"\n', module_of({"A": []})),
+
+    ("two sibling functions, one of them holding another, come back breadth first",
+     "def g():\n    def h():\n        pass\ndef f():\n    pass\n",
+     {"scopes": [{"name": "<module>", "line": 0, "bindings": {}},
+                 {"name": "g", "line": 1, "bindings": {}},
+                 {"name": "f", "line": 4, "bindings": {}},
+                 {"name": "h", "line": 2, "bindings": {}}],
+      "unread": []}),
+
+    ("a long expression is read, not refused as unreadable",
+     'A = "fragments" + ' + " + ".join(["1"] * 3000) + "\n", module_of({"A": [LEFT]})),
+
+    ("async def is a scope like def",
+     'async def f():\n    a = "fragments"\n',
+     {"scopes": [{"name": "<module>", "line": 0, "bindings": {}},
+                 {"name": "f", "line": 1, "bindings": {"a": [LEFT]}}],
+      "unread": []}),
 ]
 
 
@@ -107,7 +133,11 @@ def main(argv):
             failures.append("%s: %s" % (case, detail))
 
     for name, source, expected in CASES:
-        read, answer = module.reach_of(source, MARKERS)
+        try:
+            read, answer = module.reach_of(source, MARKERS)
+        except Exception as exc:
+            says(False, name, "it raised %r" % (exc,))
+            continue
         says(read is True, name, "read was %r" % (read,))
         if answer != expected:
             says(False, name, "answer was %r" % (answer,))
@@ -129,6 +159,9 @@ def main(argv):
         ("a comprehension's own target does not bind",
          "xs = [y for y in fragments]\n", {"xs": [LEFT]},
          [(1, "a comprehension's own target does not bind")]),
+        ("a comprehension with two clauses is one unread statement",
+         "xs = [y for y in z for w in y]\n", {"xs": []},
+         [(1, "a comprehension's own target does not bind")]),
     ]
     for name, source, bindings, wanted in unread_cases:
         read, answer = module.reach_of(source, MARKERS)
@@ -145,8 +178,8 @@ def main(argv):
 
     # The answer must be readable by a reader that only evaluates literals.
     for name, source, _ in CASES:
-        _, answer = module.reach_of(source, MARKERS)
         try:
+            _, answer = module.reach_of(source, MARKERS)
             round_tripped = ast.literal_eval(repr(answer))
         except Exception as exc:
             says(False, name, "ast.literal_eval refused the answer: %r" % (exc,))
@@ -157,6 +190,21 @@ def main(argv):
     read, answer = module.reach_of("A = fragments\n", {"empty": ()})
     says(read is True and answer["scopes"][0]["bindings"] == {"A": []},
          "an empty marker is reached by nothing", "answer was %r" % (answer,))
+
+    # Any mapping is a mapping: rule 9 refuses what is not one, not what is not a dict.
+    import collections
+    import types
+    for name, markers in (("an OrderedDict of token tuples",
+                           collections.OrderedDict(left=("fragments",))),
+                          ("a read-only mapping view",
+                           types.MappingProxyType({"left": ("fragments",)}))):
+        try:
+            read, answer = module.reach_of("A = fragments\n", markers)
+        except Exception as exc:
+            says(False, name, "it raised %r" % (exc,))
+            continue
+        says(read is True and answer["scopes"][0]["bindings"] == {"A": [LEFT]}, name,
+             "gave %r, %r" % (read, answer))
 
     # Refusals: wrong shapes and a source that does not parse, and never an exception.
     refusals = [

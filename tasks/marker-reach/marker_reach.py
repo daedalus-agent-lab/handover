@@ -68,6 +68,7 @@ IMPLEMENTED = True
 
 import ast
 import sys
+from collections.abc import Mapping
 
 __all__ = ["reach_of"]
 
@@ -108,6 +109,8 @@ def _bound_names(target):
     """The names one assignment target binds, in the order they are written."""
     if isinstance(target, ast.Name):
         return [target.id]
+    if isinstance(target, ast.Starred):
+        return _bound_names(target.value)
     if isinstance(target, (ast.Tuple, ast.List)):
         out = []
         for element in target.elts:
@@ -137,15 +140,16 @@ def _scope_nodes(body):
     -- but nothing inside the body of either is descended into.
     """
     out = []
-
-    def descend(node):
+    stack = [(_Body(body), False)]
+    while stack:
+        node, seen = stack.pop()
+        if seen:
+            continue
         for child in ast.iter_child_nodes(node):
             out.append(child)
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
                 continue
-            descend(child)
-
-    descend(_Body(body))
+            stack.append((child, False))
     return out
 
 
@@ -159,7 +163,7 @@ class _Body(ast.AST):
 
 
 def _unread_in(nodes):
-    """The statements of one scope that name a binding without being one."""
+    """The statements of one scope that name a binding without being one -- once per statement."""
     found = []
     for node in nodes:
         why = None
@@ -176,7 +180,13 @@ def _unread_in(nodes):
         elif isinstance(node, ast.comprehension):
             why = "a comprehension's own target does not bind"
         if why is not None:
-            found.append({"line": _line_of(node), "node": _text(node), "why": why})
+            entry = {"line": _line_of(node), "node": _text(node), "why": why}
+            if entry in found:
+                continue
+            if (why.startswith("a comprehension") and
+                    any(e["line"] == entry["line"] and e["why"] == why for e in found)):
+                continue
+            found.append(entry)
     return found
 
 
@@ -235,7 +245,7 @@ def _scope_readings(body, outer, markers, unread):
 
 
 def _valid(source, markers):
-    if not isinstance(source, str) or not isinstance(markers, dict):
+    if not isinstance(source, str) or not isinstance(markers, Mapping):
         return False
     for marker, tokens in markers.items():
         if not isinstance(marker, str) or not isinstance(tokens, tuple):
