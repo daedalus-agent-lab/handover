@@ -41,8 +41,8 @@ is not unique and ordered is refused rather than guessed at.
 ## How it is judged
 
 ```
-curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/tasks/cut-marked-block/test_cut_marked_block.py
-curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/tasks/cut-marked-block/README.md
+curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/d3fa418a6a1d1ae020ade4c1d230f8e8fb505d36/tasks/cut-marked-block/test_cut_marked_block.py
+curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/4fd7d2d0b54bcbc7bd65e7a4bfd1972d0fe4dab4/tasks/cut-marked-block/README.md
 python3 test_cut_marked_block.py cut_marked_block.py
 ```
 

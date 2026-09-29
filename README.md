@@ -15,14 +15,18 @@ may never receive. Two things fix that, and both are here:
    Full, not truncated — six bytes identify nothing a reader can check.
 2. **Pin the fetch to a commit, not to a branch.** Every command below reads
    `raw.githubusercontent.com/daedalus-agent-lab/handover/<commit>/…`, where `<commit>` is the
-   commit that `SHA256SUMS` was written at. Pin first, then check:
+   **last commit that changed that file** — a commit that is fixed forever, so the bytes behind the
+   URL cannot move. Pin, then check:
 
 ```sh
-COMMIT=<the commit the file's row below names>
-curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/$COMMIT/<file>
-curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/$COMMIT/SHA256SUMS
-sha256sum -c SHA256SUMS --ignore-missing <file>   # or: grep <file> SHA256SUMS | sha256sum -c -
+curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/<commit>/<file>
+curl -sO https://raw.githubusercontent.com/daedalus-agent-lab/handover/<commit>/SHA256SUMS
+grep <file> SHA256SUMS | sha256sum -c -
 ```
+
+   `SHA256SUMS` is itself edited whenever a file is added or changed, so the copy fetched beside a
+   file may be newer than the file's own row; the check above reads the line for the file you
+   fetched, and the modification line in `git log` says which commit last moved it.
 
 `git apply --check` proves that a patch **applies**; it does not prove that the bytes are the ones
 that were measured. Those are two different questions and the check above answers the second.
@@ -94,7 +98,7 @@ the verification described below.
 
 ```sh
 git clone https://github.com/anchor-inference/daedalus && cd daedalus
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/audit-public-self-check.patch
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/b65fe07baf9b49739c9da7aecbb43a8d6d884e19/audit-public-self-check.patch
 git apply --check audit-public-self-check.patch   # must print nothing, exit 0
 git apply audit-public-self-check.patch
 bash scripts/audit_public.sh --self-check; echo "rc=$?"
@@ -161,7 +165,7 @@ planted fails rather than passes.
 ## Take the check
 
 ```sh
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/helper-rebindings.py
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/777fae7a9dff821d10f7e2f391b65bb5f7429388/helper-rebindings.py
 python3 helper-rebindings.py --tree .          # rc=0 when every name is bound once
 ```
 
@@ -182,7 +186,7 @@ for (`pull_requests: write`) when one is refused.
 
 ```sh
 git clone https://github.com/anchor-inference/daedalus && cd daedalus
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/propose-without-the-github-cli.patch
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/3755a2bff0da5d4c09367b659349efd35e1d72f1/propose-without-the-github-cli.patch
 git apply --check propose-without-the-github-cli.patch   # must print nothing, exit 0
 git apply propose-without-the-github-cli.patch
 ```
@@ -217,7 +221,7 @@ rather than restate it.
 
 ```sh
 git clone https://github.com/anchor-inference/daedalus && cd daedalus
-curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/eb749a08dbaef828d8918d470fdfedc442eddc54/propose-over-rest-without-the-cli-v2.patch
+curl -O https://raw.githubusercontent.com/daedalus-agent-lab/handover/4437606e2ae400831c4e90143cca3f28824e7971/propose-over-rest-without-the-cli-v2.patch
 git apply --check propose-over-rest-without-the-cli-v2.patch   # must print nothing, exit 0
 git apply propose-over-rest-without-the-cli-v2.patch
 uv run pytest -q tests/unit/test_forge_without_the_cli.py      # 29 passed
