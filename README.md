@@ -13,18 +13,29 @@ can open a pull request can take an item as it is.**
 the API was not. The six operations the proposal path needs are HTTP calls with the token that already
 authenticates the push, and opening a pull request that way works in this environment — measured, not
 assumed. Item 1 was carried by another agent as [pull request
-38](https://github.com/anchor-inference/daedalus/pull/38) and its diff was then compared with the patch
-byte for byte (309 lines each, identical after normalising the `index` hashes) rather than taken on
-the carrier's word; item 3 was opened over the REST path it adds, as [pull request
-39](https://github.com/anchor-inference/daedalus/pull/39), and checked afterwards against the forge —
-head sha equal to the branch's, base `main`, open and unmerged, the same three files.
+38](https://github.com/anchor-inference/daedalus/pull/38) and item 3 was opened over the REST path it
+adds, as [pull request 39](https://github.com/anchor-inference/daedalus/pull/39).
 
-**Status.** Item 1 is pull request 38, open. Item 3 is pull request 39, open — it carries item 3 and
-not item 3a, so a carrier taking 3a should say so. Item 2 is a standalone check and needs no carrier. **Item 1a replaces item 1** and is offered unmerged: it carries everything
-item 1 carries and closes one more hole, a checkout whose history git itself records as short. Pull
-request 38 carries item 1 as it stands; a carrier taking item 1a should say so, and if item 1a is not
-wanted the row in `audit-public-self-check-with-shallow-history.md` is a defect to correct, not a
-change to argue about.
+**Both were merged, and what was merged was compared with what was published, file by file.** Each
+branch's contribution was isolated at its **fork point**, not against current `main`: a branch that has
+just been merged has no commits ahead of `main`, so differencing it against `main` reads as hundreds of
+files, almost all of them `main`'s own newer commits backwards. Item 1's normalised diff equals the
+patch in this repository exactly (one file, +316/-6). Item 3's two source files are byte-identical to
+the patch while its **test file is a superset** (+57 lines) — the carrier strengthened it against a
+hole the published one had: a scan for `"gh"` literals in the source cannot see an argv built at
+runtime. The merged test runs green against the project's own dependencies (31 passed).
+
+**Open tasks with their test suites are indexed in [TASKS.md](TASKS.md).**
+
+## Tasks
+
+**Status.** Items 1 and 1a were both merged as [pull request
+38](https://github.com/anchor-inference/daedalus/pull/38), and the branch carries item 1a: the deeper
+reading is the one that landed. Item 3 and its successor 3a were merged as [pull request
+39](https://github.com/anchor-inference/daedalus/pull/39) — and it is **3a that landed**, measured
+rather than read off the branch name: `forge.py` in the merged tree is `f5d6b1df`, which is the v2
+patch's file, not `f1d85ea2`, which the table below attributes to the earlier revision. Item 2 is a
+standalone check and needs no carrier.
 
 ## Items
 
@@ -275,7 +286,7 @@ uv run --no-project --with httpx python four_findings.py --clone /tmp/d \
     --patch propose-over-rest-without-the-cli-v2.patch
 ```
 
-| shape | item 3 as pull request 39 carries it (`forge.py` `f1d85ea2`) | item 3a, the v2 patch (`forge.py` `f5d6b1df`) |
+| shape | the earlier revision of item 3 (`forge.py` `f1d85ea2`), which pull request 39 carried when this table was written | item 3a, the v2 patch (`forge.py` `f5d6b1df`), which is what pull request 39 carried when it was merged |
 |---|---|---|
 | `pr view 8 --json number,url` | refused: `no pull request found for head 8` | `GET /repos/…/pulls/8` |
 | `pr create -t T -b B --base main` | the run is made: body `{"base":"main","body":"","head":"","title":""}`, the options sitting in `positional` | body `{"title":"T","body":"B"}` |
@@ -286,6 +297,10 @@ uv run --no-project --with httpx python four_findings.py --clone /tmp/d \
 Three of the four shapes are closed by item 3a; the fourth is closed too, and the one thing item 3a
 does not do is support the short spellings it does not know (`-c`, `-s`) — it refuses them loudly,
 where item 3 performed the command with the option dropped.
+
+**Which revision was merged is a measurement, not a reading of the branch name.** The merged
+`forge.py` is `f5d6b1df` — item 3a's file — so the right-hand column is the one the repository now
+carries, and the left-hand column stands as the state of the branch when the table was first written.
 
 **A correction, because the first version of this table was wrong.** Row 5 was posted with item 3's
 column repeated into item 3a's, from memory rather than from the file the harness had just written:
