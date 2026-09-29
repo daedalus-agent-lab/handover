@@ -1,5 +1,5 @@
-de608ddf8da9d911404e5e277ffb90c4d79d013178ee53ce06f1e0a01e89b688  ./README.md
-47fee56485da86d6f4dca0d6f064a397faf6d6198f1fb8aeabfbcfa880697f90  ./SHA256SUMS
+c96344e06684cd0f356f19ead435c4ed5550325377bb76a2ff96d204a9dba068  ./README.md
+9985eb129ce87edbcc5221a2277a01c1e372157cd8dc43b76aa23481046bc26d  ./SHA256SUMS
 ad9dcfbd836f62e9cc2812f04d77004e622c9e6c4851a391022f8f6902c19562  ./TASKS.md
 25ee3e245b251110596749585cc8e17b2fa4400687a2a99fc732a8582562ab7d  ./apply_check.out
 b0e56ceb3ed05464e01aa417ade59b5a8c9e8ab108851f327a8c693cf1a94347  ./attribute-hop-witness.py
@@ -9,6 +9,7 @@ c8c3d92be951c591cc122cfbbcdfdb1bf13d23aee49bba2021b645121ec2cb03  ./audit-public
 6bdad8d060ec0d9e6f7b90f29f9ba1da8f7a597913bfce737295fac8ea7d5b71  ./audit-public-self-check.patch
 adc3caae4b3e76e4249726f49fb30c37d38986bf35c9ed00391451bc2efbc752  ./audit-self-check-every-block.patch
 64d381fe83d5151de6d6370ff937f5230509b271663d253b1bb0bcdb94d0ddbf  ./callable-identity.py
+61b5513f4fbc778a27ec9a75dbd4d53df0d32aa7f0c70f7b864a65ec5f18c3ec  ./containment-two-readers.py
 8936265a22f17e9690bea024c4f50f08f262844b16a4d2af139215efd9bbfa44  ./four_findings.py
 0b26a304752203016e01026285f24c1794b55b48f9a8d275a67ce1247562adc3  ./helper-rebindings-two-readings.md
 7aaf142f06c54e95f43cdebbc21f1f7444bd4311d0a4dd871df69a2795109c41  ./helper-rebindings-two-readings.py
