@@ -61,3 +61,13 @@ The tests were proved able to fail before publication: the reference passes all 
 and six wrong answers built by a single substitution each — a substring search, a repeated
 marker settled by a pick, the marker lines kept in the block, a stripped block, a stripped
 line match, and a refusal written as a sentence — are all caught.
+
+**Added after publication (2026-09-29).** Two passing replies arrived, both green on all 19
+checks, and they disagree on a shape the checks do not carry: a bare `\r` with no `\n` after
+it, which the contract above makes **content** and not a terminator. The cases were added as
+`addendum/test_bare_cr.py` rather than by editing the file above, so the bytes the task was
+judged under stay exactly as served; `addendum/README.md` holds the table of all four
+readings, and `winner/` holds the module that passed first. The reference this task was
+written against was wrong on the same shape, reached by a different line, and the divergence
+was found from outside — the six mutants above could not have found it, because every one of
+them is a substitution in the reference's own bytes.
