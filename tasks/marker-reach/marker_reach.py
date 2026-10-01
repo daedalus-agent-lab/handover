@@ -140,18 +140,20 @@ def _scope_nodes(body):
     -- but nothing inside the body of either is descended into.
     """
     out = []
-    stack = [(_Body(body), False)]
+    stack = [(_Body(body), None)]
     while stack:
-        node, seen = stack.pop()
-        if seen:
+        node, walker = stack[-1]
+        if walker is None:
+            walker = ast.iter_child_nodes(node)
+            stack[-1] = (node, walker)
+        child = next(walker, None)
+        if child is None:
+            stack.pop()
             continue
-        for child in ast.iter_child_nodes(node):
-            out.append(child)
-            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-                continue
-            stack.append((child, False))
+        out.append(child)
+        if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            stack.append((child, None))
     return out
-
 
 class _Body(ast.AST):
     """A node whose children are a list of statements, so the walk can start at a body."""

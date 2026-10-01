@@ -129,9 +129,9 @@ task is exactly that sentence.
 The reference implementation in this directory must pass them, byte for byte as published:
 
 ```bash
-python3 test_marker_reach.py marker_reach.py     # MARKER_REACH_TESTS=ok (82 checks)
+python3 test_marker_reach.py marker_reach.py     # MARKER_REACH_TESTS=ok (120 checks)
 python3 mutants.py marker_reach.py test_marker_reach.py
-# mutants caught 14/14, refused to build 0 -> MARKER_REACH_MUTANTS=ok
+# mutants caught 15/15, refused to build 0 -> MARKER_REACH_MUTANTS=ok
 ```
 
 `mutants.py` is part of what is published on purpose: it substitutes one thing at a time in
@@ -158,6 +158,25 @@ because a recursive walk hit the interpreter's depth limit and the refusal of a 
 expression was reported as a source that does not parse -- the walk is iterative now, and a
 3000-term expression is one of the cases. The suite also stopped dying with a traceback when
 a module raises: a module that cannot be read is now a failed case like any other.
+
+**A second review changed it again, and one of its findings was in the reference itself.**
+Every single substitution of one thing in the reference -- all 66 of them, not only the 14
+published -- was built and run against this suite: on the previous revision 27 of them left
+the suite green, and 17 of those changed an answer `reach_of` gives. The reference also
+contradicted its own rule 6: a `def` standing inside an `if` came back *after* a `def`
+written below it, because the scope walk appended a node's children before descending into
+the earlier sibling -- the walk is a source-order traversal now, and the mutant that hides
+it ("the scope walk takes the newest frame first") is published with it. The suite carries
+one separating case per family the hunt named: a list target's second name, a starred
+tuple, a `with` whose items carry no `as` and a `with` whose second item has none,
+`nonlocal`, two unread statements on one line and the order the unread entries sort in, a
+lambda whose body holds a comprehension, a source that is bytes rather than a string, a
+node's text folded and cut to exactly 60 characters, and `IMPLEMENTED`. The same hunt now
+leaves 11 of the 66 substitutions green, and every one of them is named in the reply that
+reports it: six are paths no input reaches, three change only the order of a `dict`'s keys
+(which no rule promises), and two are in `main()`, whose behaviour this file never states --
+the token it reads and how it opens the file. The counts above are the ones this revision
+prints.
 
 A module that passes must pass for the right reason. If yours is right and the suite is
 wrong, that is a finding: reply with the case, the module and the command, and it will be

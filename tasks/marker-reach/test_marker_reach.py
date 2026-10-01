@@ -116,6 +116,27 @@ CASES = [
      {"scopes": [{"name": "<module>", "line": 0, "bindings": {}},
                  {"name": "f", "line": 1, "bindings": {"a": [LEFT]}}],
       "unread": []}),
+
+    ("functions separated by a compound statement come back in the order they stand",
+     'if True:\n    def f():\n        pass\nif True:\n    def g():\n        pass\n',
+     {"scopes": [{"name": "<module>", "line": 0, "bindings": {}},
+                 {"name": "f", "line": 2, "bindings": {}},
+                 {"name": "g", "line": 5, "bindings": {}}],
+      "unread": []}),
+
+    ("a def under an if stands before a def written after it",
+     'if True:\n    def early():\n        pass\ndef late():\n    pass\n',
+     {"scopes": [{"name": "<module>", "line": 0, "bindings": {}},
+                 {"name": "early", "line": 2, "bindings": {}},
+                 {"name": "late", "line": 4, "bindings": {}}],
+      "unread": []}),
+
+    ("a list target binds each name, not only the first",
+     "[a, b] = one_two(fragments)\n", module_of({"a": [LEFT], "b": [LEFT]})),
+
+    ("a starred element that stars a tuple binds every name in it",
+     "a, *(b, c) = one_two(fragments)\n",
+     module_of({"a": [LEFT], "b": [LEFT], "c": [LEFT]})),
 ]
 
 
@@ -162,6 +183,23 @@ def main(argv):
         ("a comprehension with two clauses is one unread statement",
          "xs = [y for y in z for w in y]\n", {"xs": []},
          [(1, "a comprehension's own target does not bind")]),
+        ("a with whose items carry no as binds nothing and is not unread",
+         'with open("fragments"):\n    pass\n', {}, []),
+        ("a with whose second item has no as is one unread statement",
+         'with open("a") as x, open("b"):\n    pass\n', {},
+         [(1, "with ... as x does not bind")]),
+        ("nonlocal is unread although the name is bound",
+         "def f():\n    x = 1\n    def g():\n        nonlocal x\n        x = 2\n", {},
+         [(4, "global and nonlocal do not bind here")]),
+        ("two unread statements on one line are two entries, sorted by reason",
+         "x = 1\nx += 2; import os\n", {"x": []},
+         [(2, "import does not bind here"), (2, "x += value does not bind")]),
+        ("the reason is read before the line when the entries are sorted",
+         "x = 1\nx += 2\nimport os\n", {"x": []},
+         [(2, "x += value does not bind"), (3, "import does not bind here")]),
+        ("a lambda whose body holds a comprehension is still not read into",
+         "F = lambda: [y for y in fragments]\n", {"F": []},
+         [(1, "a Lambda body is not read")]),
     ]
     for name, source, bindings, wanted in unread_cases:
         read, answer = module.reach_of(source, MARKERS)
@@ -214,6 +252,7 @@ def main(argv):
         ("a token that is not a string", "A = 1\n", {"m": ("a", 1)}),
         ("a marker name that is not a string", "A = 1\n", {1: ("a",)}),
         ("a source that does not parse", "def f(:\n", MARKERS),
+        ("a source that is bytes, not a string", b"A = 1\n", MARKERS),
     ]
     for name, source, markers in refusals:
         try:
@@ -222,6 +261,23 @@ def main(argv):
             says(False, name, "it raised %r" % (exc,))
             continue
         says(read is False and answer == {}, name, "gave %r, %r" % (read, answer))
+
+    # A node's text is folded onto one line and cut to exactly 60 characters.
+    read, answer = module.reach_of('with open("fragments") as handle:\n    pass\n', MARKERS)
+    text = answer["unread"][0]["node"] if read and answer.get("unread") else ""
+    says(read is True and len(answer.get("unread", [])) == 1,
+         "a with ... as x is one unread entry", "gave %r, %r" % (read, answer))
+    says(text.startswith("with open") and "\n" not in text and "  " not in text,
+         "a node's text is folded onto one line", "the text was %r" % (text,))
+    read, answer = module.reach_of("with open(fragments_%s) as handle:\n    pass\n" % ("a" * 200),
+                                   MARKERS)
+    text = answer["unread"][0]["node"] if read and answer.get("unread") else ""
+    says(len(text) == 60, "a node's text is cut to 60 characters",
+         "the text was %d characters: %r" % (len(text), text))
+
+    # The task asks the module to say it is an answer and not a draft.
+    says(getattr(module, "IMPLEMENTED", None) is True, "the module carries IMPLEMENTED = True",
+         "IMPLEMENTED was %r" % (getattr(module, "IMPLEMENTED", None),))
 
     if failures:
         print("MARKER_REACH_TESTS=FAILED (%d case(s))" % len(failures))
